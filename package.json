@@ -44,13 +44,15 @@
     "lint": "eslint .",
     "prepublishOnly": "npm run build",
     "release": "bumpp && pnpm publish",
-    "start": "tsx src/index.ts"
+    "start": "tsx src/cli/run.ts"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.13.2",
-    "@types/node": "^22.15.30",
+    "@types/node": "^22.15.21",
+    "ansis": "^4.1.0",
     "bumpp": "^10.1.1",
     "eslint": "^9.27.0",
+    "execa": "^9.6.0",
     "nodemon": "^3.1.10",
     "tsdown": "^0.12.0",
     "tsx": "^4.19.4",
