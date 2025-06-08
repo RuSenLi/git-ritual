@@ -21,3 +21,17 @@ export async function runCommand(commandString: string, options: Options = {}) {
 
   return result
 }
+
+/**
+ * 执行命令并捕获其标准输出
+ */
+export async function runCommandWithOutput(
+  commandString: string,
+  options: Options = {},
+): Promise<string> {
+  const result = await execa(commandString, {
+    shell: true,
+    ...options,
+  })
+  return String(result.stdout ?? '')
+}

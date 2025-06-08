@@ -4,8 +4,6 @@ export interface GitRitualGlobals {
   /** @default false */
   push?: boolean
   /** @default false */
-  fetchAll?: boolean
-  /** 目标工作目录路径 */
   cwd: string
 }
 

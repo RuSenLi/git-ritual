@@ -1,4 +1,5 @@
-import type { Config, CustomTaskStep } from './types/options'
+import type { CherryPickStep, Config, CustomTaskStep } from './types/options'
+import { handleCherryPick } from './steps/cherry-pick'
 import { runCommand } from './utils/exec'
 import { logger } from './utils/logger'
 
@@ -23,6 +24,25 @@ export async function runSteps(config: Config) {
 
     if ('run' in step) {
       await runCustomTask(step as CustomTaskStep, globals.cwd)
+    }
+    else if ('uses' in step) {
+      switch (step.uses) {
+        case 'gitritual/cherry-pick@v1':
+          await handleCherryPick(step as CherryPickStep, globals)
+          break
+        case 'gitritual/create-with-cherry@v1':
+          logger.warn(`'create-with-cherry' step is not yet implemented.`)
+          break
+        case 'gitritual/has-commit@v1':
+          logger.warn(`'has-commit' step is not yet implemented.`)
+          break
+        case 'gitritual/create-pr@v1':
+          logger.warn(`'create-pr' step is not yet implemented.`)
+          break
+        default:
+          logger.error(`Unknown step uses: ${(step as any).uses}`)
+          break
+      }
     }
   }
 
