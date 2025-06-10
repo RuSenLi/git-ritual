@@ -1,10 +1,9 @@
-// src/steps/cherry-pick.ts
-
 import type { GitError } from 'simple-git'
-import type { CherryPickStep, GitRitualGlobals } from '../types/options'
-import * as git from '../utils/git'
-import { logger } from '../utils/logger'
-import { promptForMultiSelect, promptForNextAction } from '../utils/prompts'
+import type { CherryPickStep } from './types'
+import type { GitRitualGlobals } from '@/types'
+import * as git from '@/utils/git'
+import { logger } from '@/utils/logger'
+import { promptForMultiSelect, promptForNextAction } from '@/utils/prompts'
 
 export async function handleCherryPick(
   step: CherryPickStep,
@@ -12,17 +11,14 @@ export async function handleCherryPick(
 ) {
   const { cwd } = globals
 
-  // 1. 从配置中获取初始分支列表
+  // 1. 分支选择
   const initialTargetBranches = Array.isArray(step.with.targetBranches)
     ? step.with.targetBranches
     : [step.with.targetBranches]
-
   const branchOptions = initialTargetBranches.map(branch => ({
     value: branch,
     label: branch,
   }))
-
-  // 2. 让用户从列表中选择要处理的分支
   const selectedBranches = await promptForMultiSelect(
     'Which branches to process? (Press <space> to toggle, <a> to toggle all, <enter> to submit)',
     branchOptions,
@@ -32,14 +28,13 @@ export async function handleCherryPick(
     logger.warn('No branches selected. Exiting step.')
     return
   }
-
   logger.info(
     `Will process the following branches: ${selectedBranches.join(', ')}`,
   )
 
   const originalBranch = await git.getCurrentBranch(cwd)
 
-  // 安全检查
+  // 2. 安全检查
   logger.info('Performing pre-flight safety checks...')
   if (!(await git.isRepositoryInSafeState(cwd))) {
     throw new Error(
@@ -54,9 +49,10 @@ export async function handleCherryPick(
   const remote = step.with.remote ?? globals.remote ?? 'origin'
   const shouldPush = step.with.push ?? globals.push ?? false
 
-  // 使用用户选择的 `selectedBranches` 进行循环
+  // 3. 外层循环：处理分支
   for (let i = 0; i < selectedBranches.length; i++) {
     const branch = selectedBranches[i]
+    let branchHasChanges = false
     logger.log(
       `\nProcessing branch: ${branch} (${i + 1}/${selectedBranches.length})`,
     )
@@ -69,18 +65,14 @@ export async function handleCherryPick(
       if (await git.isBranchTracked(branch, cwd))
         await git.gitPull(remote, branch, cwd)
 
-      const hashesToPick: string[] = []
+      const hashesToPick = []
+      // 筛选 commits
       logger.info('Checking which changes need to be applied...')
       for (const hash of initialCommitHashes) {
         if (!(await git.isChangeApplied(hash, branch, cwd))) {
           hashesToPick.push(hash)
-        }
-        else {
           logger.log(
-            `- Change from commit ${hash.substring(
-              0,
-              7,
-            )} already applied. Skipping.`,
+            `- Change from commit ${hash.substring(0, 7)} needs to be applied.`,
           )
         }
       }
@@ -92,6 +84,7 @@ export async function handleCherryPick(
         continue
       }
 
+      // 4. 内层循环：逐个处理 commit
       for (const hash of hashesToPick) {
         let isCommitHandled = false
         while (!isCommitHandled) {
@@ -101,26 +94,21 @@ export async function handleCherryPick(
             )
             await git.gitCherryPick([hash], cwd)
             isCommitHandled = true
+            branchHasChanges = true
             logger.success(`  Successfully picked ${hash.substring(0, 7)}.`)
           }
           catch (e: any) {
             const error = e as GitError
-            const errorMessage = error.message.toLowerCase()
             logger.error(
               `  Operation failed for commit ${hash.substring(0, 7)}.`,
             )
             logger.warn(`  Reason: ${error.message}`)
 
-            const isConflict
-              = errorMessage.includes('conflict')
-                || errorMessage.includes('unmerged')
-
-            // 同样使用 `selectedBranches` 来获取下一个分支名
-            const nextBranchName = selectedBranches[i + 1]
+            const isConflict = error.message.toLowerCase().includes('conflict')
             const resolution = await promptForNextAction({
               isConflict,
               nextActionName: shouldPush ? `git push` : 'finish this commit',
-              nextBranchName,
+              nextBranchName: selectedBranches[i + 1],
             })
 
             switch (resolution) {
@@ -128,25 +116,32 @@ export async function handleCherryPick(
                 try {
                   await git.gitCherryPickContinue(cwd)
                   isCommitHandled = true
+                  branchHasChanges = true
                   logger.success(`  Conflict resolved and continued.`)
                 }
                 catch (continueError: any) {
                   const continueMessage = continueError.message.toLowerCase()
-                  if (continueMessage.includes('empty')) {
+                  logger.error(`  Failed to "continue" the cherry-pick.`)
+                  logger.warn(`  Reason: ${continueError.message}`)
+                  if (
+                    continueMessage.includes(
+                      'the previous cherry-pick is now empty',
+                    )
+                  ) {
                     logger.warn(
                       '  Conflict resolution resulted in an empty commit. Automatically skipping...',
                     )
                     await git.gitCherryPickSkip(cwd)
-                    isCommitHandled = true
+                    isCommitHandled = true // 跳过也算成功处理
+                  }
+                  else if (continueMessage.includes('unmerged files')) {
+                    logger.warn(
+                      '  Hint: Did you forget to run \'git add <files>\' after resolving? Please try again.',
+                    )
                   }
                   else {
-                    logger.error('  Failed to "continue" the cherry-pick.')
-                    logger.warn(`  Reason: ${continueError.message}`)
-                    if (continueMessage.includes('unmerged files')) {
-                      logger.warn(
-                        '  Hint: Did you forget to run \'git add <files>\' after resolving?',
-                      )
-                    }
+                    await git.gitCherryPickAbort(cwd).catch(() => {})
+                    throw continueError
                   }
                 }
                 break
@@ -171,12 +166,15 @@ export async function handleCherryPick(
         }
       }
 
-      if (shouldPush && hashesToPick.length > 0) {
+      // 只有在当前分支确实发生了变更时才执行 push
+      if (shouldPush && branchHasChanges) {
         await git.gitPush(remote, branch, cwd)
       }
     }
     catch (error: any) {
-      logger.error(`An unrecoverable error occurred on branch "${branch}".`)
+      logger.error(
+        `An unrecoverable error occurred on branch "${branch}". Aborting all tasks.`,
+      )
       await git.gitCheckout(originalBranch, cwd).catch(() => {})
       throw error
     }

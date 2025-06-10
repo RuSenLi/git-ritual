@@ -1,4 +1,5 @@
-import type { CherryPickStep, Config, CustomTaskStep } from './types/options'
+import type { Config, CustomTaskStep } from '@/types'
+import type { CherryPickStep } from '@/types/uses'
 import { handleCherryPick } from './steps/cherry-pick'
 import { runCommand } from './utils/exec'
 import { logger } from './utils/logger'

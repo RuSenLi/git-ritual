@@ -1,4 +1,4 @@
-import type { Config } from '../types/options'
+import type { Config } from '../types'
 import process from 'node:process'
 import { loadConfig } from 'c12'
 import { runSteps } from '../runner'

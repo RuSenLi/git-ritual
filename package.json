@@ -35,7 +35,11 @@
       ]
     }
   },
+  "bin": {
+    "gr": "bin/gitritual.mjs"
+  },
   "files": [
+    "bin",
     "dist"
   ],
   "scripts": {
@@ -46,16 +50,20 @@
     "release": "bumpp && pnpm publish",
     "start": "tsx src/cli/run.ts"
   },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "ansis": "^4.1.0",
+    "execa": "^9.6.0",
+    "simple-git": "^3.28.0"
+  },
   "devDependencies": {
     "@antfu/eslint-config": "^4.13.2",
-    "@clack/prompts": "^0.11.0",
+    "@types/module-alias": "^2.0.4",
     "@types/node": "^22.15.21",
-    "ansis": "^4.1.0",
     "bumpp": "^10.1.1",
     "eslint": "^9.27.0",
-    "execa": "^9.6.0",
+    "module-alias": "^2.2.3",
     "nodemon": "^3.1.10",
-    "simple-git": "^3.28.0",
     "tsdown": "^0.12.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"

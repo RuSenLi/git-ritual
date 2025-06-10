@@ -1,3 +1,5 @@
+import type { uses } from './uses'
+
 export interface GitRitualGlobals {
   /** @default origin */
   remote?: string
@@ -15,25 +17,6 @@ export type TargetBranches = string | string[]
  */
 export interface BaseStep {
   name?: string
-}
-
-/**
- * cherry-pick 步骤，批量将指定提交应用到目标分支。
- * 对应 git 命令：
- * 1. git fetch <remote> <targetBranch>
- * 2. git checkout <targetBranch>
- * 3. git pull --ff-only <remote> <targetBranch>
- * 4. git cherry-pick <commit1> <commit2> ...
- * 5. git push <remote> <targetBranch>
- */
-export interface CherryPickStep extends BaseStep {
-  uses: 'gitritual/cherry-pick@v1'
-  with: {
-    targetBranches: TargetBranches
-    commitHashes: CommitHashes
-    push?: boolean
-    remote?: string
-  }
 }
 
 /**
@@ -152,7 +135,7 @@ export interface CustomTaskStep extends BaseStep {
  * 所有支持的步骤类型联合
  */
 export type GitRitualStep
-  = | CherryPickStep
+  = | uses
     | CreateWithCherryStep
     | CreatePrStep
     | HasCommitStep

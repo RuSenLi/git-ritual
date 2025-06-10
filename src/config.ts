@@ -1,4 +1,4 @@
-import type { Config } from './types/options'
+import type { Config } from './types'
 
 type props = Config | (() => Config)
 
