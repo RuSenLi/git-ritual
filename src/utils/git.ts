@@ -200,3 +200,17 @@ export async function gitCherryPickSkip(cwd: string): Promise<void> {
 export async function gitCherryPickAbort(cwd: string): Promise<void> {
   await getGit(cwd).raw(['cherry-pick', '--abort'])
 }
+
+/**
+ * 获取本地分支相对于其上游远程分支的状态
+ * @param cwd
+ * @returns Promise<{ ahead: number; behind: number; tracking: string | null; }>
+ */
+export async function getBranchUpstreamStatus(cwd: string) {
+  const status = await getGit(cwd).status()
+  return {
+    ahead: status.ahead,
+    behind: status.behind,
+    tracking: status.tracking,
+  }
+}
