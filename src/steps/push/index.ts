@@ -1,8 +1,8 @@
 import type { PushStep } from './types'
 import type { GitRitualGlobals } from '@/types'
-import { note } from '@clack/prompts'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
+import { reportAndFinalizeStep } from '@/utils/summary'
 
 export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
   const { cwd } = globals
@@ -59,29 +59,14 @@ export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
     }
   }
 
-  // 4. 所有分支处理完毕后，生成并打印总结报告
-  const summaryParts: string[] = []
-  if (successfulPushes.length > 0) {
-    summaryParts.push(
-      `✅ Successful branches:\n   - ${successfulPushes.join('\n   - ')}`,
-    )
-  }
-  if (failedPushes.length > 0) {
-    const failedSummary = failedPushes
-      .map(f => `${f.branch}: ${f.reason}`)
-      .join('\n   - ')
-    summaryParts.push(`❌ Failed branches:\n   - ${failedSummary}`)
-  }
-
-  note(summaryParts.join('\n\n'), 'Push Step Summary')
-
-  // 确保最后切回用户开始时的分支
-  await git.gitCheckout(originalBranch, cwd)
-
-  // 5. 如果有任何失败，则抛出最终错误，使整个步骤失败
-  if (failedPushes.length > 0) {
-    throw new Error(
-      `Finished push step with ${failedPushes.length} failure(s).`,
-    )
-  }
+  await reportAndFinalizeStep({
+    stepName: 'Push',
+    successfulItems: successfulPushes,
+    failedItems: failedPushes.map(f => ({
+      item: f.branch,
+      reason: f.reason,
+    })),
+    originalBranch,
+    cwd: globals.cwd,
+  })
 }
