@@ -4,6 +4,7 @@ import type {
   CreateWithPickStep,
   PushStep,
 } from '@/types/uses'
+import { gitFetchAll } from '@/utils/git'
 import { handleCherryPick, handleCreateWithPick, handlePush } from './steps'
 import { runCommand } from './utils/exec'
 import { logger } from './utils/logger'
@@ -20,6 +21,9 @@ async function runCustomTask(step: CustomTaskStep, cwd: string) {
 
 export async function runSteps(config: Config) {
   const { steps, globals } = config
+
+  logger.info('Performing initial sync with remotes...')
+  await gitFetchAll(globals.cwd)
 
   for (const step of steps) {
     logger.log('')

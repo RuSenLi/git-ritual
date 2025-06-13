@@ -41,7 +41,19 @@ export async function reportAndFinalizeStep(options: ReportOptions) {
   logger.info(
     `\nStep finished. Switching back to original branch "${originalBranch}".`,
   )
-  await git.gitCheckout(originalBranch, cwd)
+
+  try {
+    logger.info(
+      `\nStep finished. Switching back to original branch "${originalBranch}".`,
+    )
+    await git.gitCheckout(originalBranch, cwd)
+  }
+  catch (e: any) {
+    logger.warn(
+      `⚠️  Warning: All tasks completed, but failed to switch back to the original branch "${originalBranch}". Please switch manually.`,
+    )
+    logger.warn(`   Reason: ${e.message}`)
+  }
 
   // 4. 如果有任何失败，则抛出最终错误，使整个步骤状态为失败
   if (failedItems.length > 0) {

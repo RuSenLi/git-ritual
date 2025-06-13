@@ -1,8 +1,8 @@
 import type { CherryPickStep } from './types'
 import type { GitRitualGlobals } from '@/types'
+import { performCherryPickFlow } from '@/steps/shared/perform-cherry-pick-flow'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
-import { performCherryPickFlow } from '@/utils/perform-cherry-pick-flow'
 import { promptForMultiSelect } from '@/utils/prompts'
 
 export interface BranchProcessingContext {

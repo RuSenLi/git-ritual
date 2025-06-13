@@ -1,8 +1,8 @@
 import type { CreateWithPickStep } from './types'
 import type { GitRitualGlobals } from '@/types'
+import { filterCommitsToApply, performCherryPickFlow } from '@/steps/shared'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
-import { performCherryPickFlow } from '@/utils/perform-cherry-pick-flow'
 import { confirmOrAbort } from '@/utils/prompts'
 
 /**
@@ -24,11 +24,7 @@ export async function handleCreateWithPick(
   )
 
   // 安全检查并保存初始状态
-  if (!(await git.isRepositoryInSafeState(cwd))) {
-    throw new Error(
-      'Pre-flight safety check failed. Please clean up your repository state.',
-    )
-  }
+  await git.isRepositoryInSafeState(cwd)
   const originalBranch = await git.getCurrentBranch(cwd)
 
   try {
@@ -40,21 +36,22 @@ export async function handleCreateWithPick(
     }
     await git.gitCheckout(baseBranch, cwd)
 
-    // 检查目标分支是否存在
-    const branchExists = await git.doesLocalBranchExist(newBranch, cwd)
-    if (branchExists) {
-      logger.warn(`Branch "${newBranch}" already exists.`)
+    // 检查新分支是否存在，并与用户交互
+    if (await git.isBranchNameInUse(newBranch, cwd)) {
       const useExisting = await confirmOrAbort(
-        `Do you want to use this existing branch and continue?`,
+        `Branch "${newBranch}" already exists. Use it and continue?`,
         true,
       )
-
       if (useExisting) {
+        if (await git.isBranchTracked(newBranch, cwd)) {
+          await git.gitFetch(remote, newBranch, cwd)
+          await git.gitPull(remote, newBranch, cwd)
+        }
         await git.gitCheckout(newBranch, cwd)
       }
       else {
         logger.warn(
-          `Skipping step because user chose not to proceed with existing branch "${newBranch}".`,
+          `Skipping step as user chose not to proceed with existing branch "${newBranch}".`,
         )
         await git.gitCheckout(originalBranch, cwd)
         return
@@ -64,10 +61,24 @@ export async function handleCreateWithPick(
       await git.gitCreateBranchFrom(newBranch, baseBranch, cwd)
     }
 
-    // 后续的 cherry-pick 流程
-    const hashesToPick = Array.isArray(commitHashes)
+    // 筛选并应用 commit
+    const initialHashes = Array.isArray(commitHashes)
       ? commitHashes
       : [commitHashes]
+    const hashesToPick = await filterCommitsToApply(
+      initialHashes,
+      newBranch,
+      cwd,
+    )
+
+    if (hashesToPick.length === 0) {
+      logger.success(
+        `All changes already exist on new branch "${newBranch}". Nothing to do.`,
+      )
+      await git.gitCheckout(originalBranch, cwd)
+      return
+    }
+
     const hasChanges = await performCherryPickFlow({
       hashesToPick,
       globals,
@@ -76,6 +87,7 @@ export async function handleCreateWithPick(
     if (shouldPush && hasChanges) {
       await git.gitPush(remote, newBranch, cwd)
     }
+    logger.success('🎉 Create-with-pick step completed successfully!')
   }
   catch (error) {
     logger.error(`An unrecoverable error occurred during create-with-pick.`)
@@ -83,6 +95,16 @@ export async function handleCreateWithPick(
     throw error
   }
 
-  await git.gitCheckout(originalBranch, cwd)
-  logger.success('🎉 Create-with-pick step completed successfully!')
+  try {
+    logger.info(
+      `\nStep finished. Switching back to original branch "${originalBranch}".`,
+    )
+    await git.gitCheckout(originalBranch, cwd)
+  }
+  catch (e: any) {
+    logger.warn(
+      `⚠️  Warning: All tasks completed, but failed to switch back to the original branch "${originalBranch}". Please switch manually.`,
+    )
+    logger.warn(`   Reason: ${e.message}`)
+  }
 }

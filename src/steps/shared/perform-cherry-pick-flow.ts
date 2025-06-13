@@ -20,11 +20,9 @@ export async function performCherryPickFlow(
   const { cwd } = globals
   let hasChanges = false
 
-  // 循环处理每一个需要被应用的 commit
   for (const hash of hashesToPick) {
     let isCommitHandled = false
 
-    // 为单个 commit 的处理创建一个“解决循环”，直到它被成功处理或跳过
     while (!isCommitHandled) {
       try {
         logger.info(
@@ -63,7 +61,7 @@ export async function performCherryPickFlow(
         logger.error(`  Operation failed for commit ${hash.substring(0, 7)}.`)
         logger.warn(`  Reason: ${error.message}`)
 
-        // 场景1: Git 明确告知这是一个“空提交”（通常在冲突状态后），我们自动处理
+        // Git 明确告知这是一个“空提交”（通常在冲突状态后），我们自动处理
         if (errorMessage.includes('the previous cherry-pick is now empty')) {
           logger.warn(
             '  Change is already present or conflict resolution resulted in an empty commit. Automatically skipping...',
@@ -73,7 +71,7 @@ export async function performCherryPickFlow(
           continue
         }
 
-        // 场景2: 这是一个需要交互处理的错误
+        // 这是一个需要交互处理的错误
         const isConflict
           = errorMessage.includes('conflict')
             || errorMessage.includes('could not apply')
@@ -81,32 +79,42 @@ export async function performCherryPickFlow(
 
         switch (resolution) {
           case 'continue':
-            try {
-              await git.gitCherryPickContinue(cwd)
+            // 在尝试 --continue 之前，先检查状态
+            if (git.isCherryPickInProgress(cwd)) {
+              try {
+                await git.gitCherryPickContinue(cwd)
+                isCommitHandled = true
+                hasChanges = true
+                logger.success(`  Conflict resolved and continued.`)
+              }
+              catch (continueError: any) {
+                const continueMessage = continueError.message.toLowerCase()
+                logger.error('  Failed to "continue" the cherry-pick.')
+                logger.warn(`  Reason: ${continueError.message}`)
+                if (continueMessage.includes('empty')) {
+                  logger.warn(
+                    '  Conflict resolution resulted in an empty commit. Automatically skipping...',
+                  )
+                  await git.gitCherryPickSkip(cwd)
+                  isCommitHandled = true
+                }
+                else if (continueMessage.includes('unmerged files')) {
+                  logger.warn(
+                    '  Hint: Did you forget to run \'git add <files>\' after resolving? Please try again.',
+                  )
+                }
+                else {
+                  await git.gitCherryPickAbort(cwd).catch(() => {})
+                  throw continueError
+                }
+              }
+            }
+            else {
+              logger.info(
+                '  It seems the cherry-pick was already resolved manually. Continuing...',
+              )
               isCommitHandled = true
               hasChanges = true
-              logger.success(`  Conflict resolved and continued.`)
-            }
-            catch (continueError: any) {
-              const continueMessage = continueError.message.toLowerCase()
-              logger.error('  Failed to "continue" the cherry-pick.')
-              logger.warn(`  Reason: ${continueError.message}`)
-              if (continueMessage.includes('empty')) {
-                logger.warn(
-                  '  Conflict resolution resulted in an empty commit. Automatically skipping...',
-                )
-                await git.gitCherryPickSkip(cwd)
-                isCommitHandled = true
-              }
-              else if (continueMessage.includes('unmerged files')) {
-                logger.warn(
-                  '  Hint: Did you forget to run \'git add <files>\' after resolving? Please try again.',
-                )
-              }
-              else {
-                await git.gitCherryPickAbort(cwd).catch(() => {})
-                throw continueError
-              }
             }
             break
           case 'skip':
