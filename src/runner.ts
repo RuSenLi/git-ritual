@@ -1,6 +1,10 @@
 import type { Config, CustomTaskStep } from '@/types'
-import type { CherryPickStep, PushStep } from '@/types/uses'
-import { handleCherryPick, handlePush } from './steps'
+import type {
+  CherryPickStep,
+  CreateWithPickStep,
+  PushStep,
+} from '@/types/uses'
+import { handleCherryPick, handleCreateWithPick, handlePush } from './steps'
 import { runCommand } from './utils/exec'
 import { logger } from './utils/logger'
 
@@ -34,8 +38,8 @@ export async function runSteps(config: Config) {
         case 'gitritual/push@v1':
           await handlePush(step as PushStep, globals)
           break
-        case 'gitritual/create-with-cherry@v1':
-          logger.warn(`'create-with-cherry' step is not yet implemented.`)
+        case 'gitritual/create-with-pick@v1':
+          await handleCreateWithPick(step as CreateWithPickStep, globals)
           break
         case 'gitritual/has-commit@v1':
           logger.warn(`'has-commit' step is not yet implemented.`)

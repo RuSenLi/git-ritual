@@ -14,11 +14,20 @@ export default defineConfig({
     //     targetBranches: ['ritual-beta', 'ritual-dev'],
     //   },
     // },
+    // {
+    //   name: 'push',
+    //   uses: 'gitritual/push@v1',
+    //   with: {
+    //     branches: ['ritual-dev', 'ritual-beta'],
+    //   },
+    // },
     {
-      name: 'push',
-      uses: 'gitritual/push@v1',
+      name: '基于保护分支创建修复分支，并挑选修复代码',
+      uses: 'gitritual/create-with-pick@v1',
       with: {
-        branches: ['ritual-dev', 'ritual-beta'],
+        baseBranch: 'main',
+        newBranch: 'f_ritual_lrs/10086',
+        commitHashes: '485d9e41163b6edb8b0d71e0530de687a90cb88c',
       },
     },
   ],

@@ -1,7 +1,31 @@
 import type { Option } from '@clack/prompts'
 import process from 'node:process'
-import { isCancel, multiselect, select } from '@clack/prompts'
+import { confirm, isCancel, multiselect, select } from '@clack/prompts'
 import { logger } from './logger'
+
+/**
+ * 向用户显示一个“是/否”的确认提示。
+ * 如果用户按 Ctrl+C 取消，则会中止程序。
+ * @param message - 要显示给用户的提示信息
+ * @param initialValue - 默认值 (true 为 Yes, false 为 No)
+ * @returns Promise<boolean> - 用户是否确认
+ */
+export async function confirmOrAbort(
+  message: string,
+  initialValue = false,
+): Promise<boolean> {
+  const shouldContinue = await confirm({
+    message,
+    initialValue,
+  })
+
+  if (isCancel(shouldContinue)) {
+    logger.warn('Operation cancelled by user.')
+    process.exit(0)
+  }
+
+  return shouldContinue
+}
 
 interface NextActionContext {
   isConflict: boolean

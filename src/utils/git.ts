@@ -214,3 +214,64 @@ export async function getBranchUpstreamStatus(cwd: string) {
     tracking: status.tracking,
   }
 }
+
+/**
+ * 从一个基底分支创建并切换到一个新分支
+ * @param newBranch - 新分支的名称
+ * @param baseBranch - 基底分支的名称
+ * @param cwd - 工作目录
+ */
+export async function gitCreateBranchFrom(
+  newBranch: string,
+  baseBranch: string,
+  cwd: string,
+) {
+  const s = spinner()
+  s.start(`Creating new branch "${newBranch}" from "${baseBranch}"...`)
+  try {
+    await getGit(cwd).checkout(['-b', newBranch, baseBranch])
+    s.stop(`Successfully created and switched to branch "${newBranch}".`)
+  }
+  catch (error) {
+    s.stop(`Failed to create branch "${newBranch}".`, 1)
+    throw error
+  }
+}
+
+/**
+ * 检查指定的本地分支是否存在
+ * @param branchName 要检查的分支名
+ * @param cwd 工作目录
+ * @returns Promise<boolean>
+ */
+export async function doesLocalBranchExist(
+  branchName: string,
+  cwd: string,
+): Promise<boolean> {
+  const s = spinner()
+  s.start(`Checking for existing branch "${branchName}"...`)
+  try {
+    const localBranches = await getGit(cwd).branchLocal()
+    const exists = branchName in localBranches.branches
+
+    s.stop(
+      exists
+        ? `Branch "${branchName}" found.`
+        : `Branch "${branchName}" not found.`,
+    )
+    return exists
+  }
+  catch {
+    s.stop(`Failed to check for branch "${branchName}".`, 1)
+    return false
+  }
+}
+
+/**
+ * 获取当前 HEAD 的 commit hash
+ * @param cwd 工作目录
+ * @returns Promise<string>
+ */
+export async function getHeadHash(cwd: string): Promise<string> {
+  return await getGit(cwd).revparse('HEAD')
+}
