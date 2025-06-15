@@ -1,4 +1,4 @@
-import type { BaseStep } from '@/types'
+import type { BaseStep, CommitHashes } from '@/types'
 
 /**
  * 'gitritual/create-with-pick@v1'
@@ -25,7 +25,7 @@ export interface CreateWithPickStep extends BaseStep {
     /**
      * 需要被 cherry-pick 到新分支的一个或多个 commit hashes。
      */
-    commitHashes: string | string[]
+    commitHashes: CommitHashes
     /**
      * 操作完成后是否将新分支推送到远程。
      * @default false

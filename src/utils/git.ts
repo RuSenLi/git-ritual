@@ -1,4 +1,6 @@
 import type { SimpleGit, SimpleGitOptions } from 'simple-git'
+import type { DefaultLogFields } from 'simple-git'
+import type { CommitMessageCheck } from '@/steps/has-commit/types'
 import fs from 'node:fs'
 import path from 'node:path'
 import { spinner } from '@clack/prompts'
@@ -344,4 +346,87 @@ export async function getHeadHash(cwd: string): Promise<string> {
 export function isCherryPickInProgress(cwd: string): boolean {
   const gitDir = path.join(cwd, '.git')
   return fs.existsSync(path.join(gitDir, 'CHERRY_PICK_HEAD'))
+}
+
+/**
+ * 根据 patch-id 查找已应用的 commit hashes
+ * @param sourceHashes - 原始 commit hashes 列表
+ * @param targetBranch - 目标分支
+ * @param cwd - 工作目录
+ * @returns Promise<string[]> - 返回在目标分支上找到匹配的 sourceHashes 列表
+ */
+export async function findAppliedHashesByPatchId(
+  sourceHashes: string[],
+  targetBranch: string,
+  cwd: string,
+): Promise<string[]> {
+  const foundHashes: string[] = []
+  const targetPatchIds = await getRecentPatchIds(targetBranch, cwd)
+
+  for (const hash of sourceHashes) {
+    const sourcePatchId = await getPatchId(hash, cwd)
+    if (sourcePatchId && targetPatchIds.has(sourcePatchId)) {
+      foundHashes.push(hash)
+    }
+  }
+  return foundHashes
+}
+
+/**
+ * 根据 message, author, date 等复杂条件查找 commits
+ * @param checks - 检查规则对象列表
+ * @param targetBranch - 目标分支
+ * @param cwd - 工作目录
+ * @returns Promise<DefaultLogFields[]> - 返回所有匹配到的 commit 对象
+ */
+export async function findCommitsByCriteria(
+  checks: CommitMessageCheck[],
+  targetBranch: string,
+  cwd: string,
+): Promise<DefaultLogFields[]> {
+  const git = getGit(cwd)
+  const allFoundCommits: DefaultLogFields[] = []
+
+  for (const check of checks) {
+    const logArgs: string[] = [targetBranch]
+
+    if (check.message) {
+      const messages = Array.isArray(check.message)
+        ? check.message
+        : [check.message]
+      for (const msg of messages) {
+        logArgs.push(`--grep=${msg}`)
+      }
+      logArgs.push('-E') // 启用扩展正则
+    }
+
+    if (check.author) {
+      const authors = Array.isArray(check.author)
+        ? check.author
+        : [check.author]
+      for (const author of authors) {
+        logArgs.push(`--author=${author}`)
+      }
+    }
+
+    if (check.date) {
+      if (typeof check.date === 'string') {
+        logArgs.push(`--since=${check.date} 00:00:00`)
+        logArgs.push(`--until=${check.date} 23:59:59`)
+      }
+      else if (Array.isArray(check.date) && check.date.length === 2) {
+        logArgs.push(`--since=${check.date[0]}`)
+        logArgs.push(`--until=${check.date[1]}`)
+      }
+    }
+
+    const log = await git.log(logArgs)
+    allFoundCommits.push(...log.all)
+  }
+
+  if (allFoundCommits.length === 0)
+    return []
+  return [
+    ...new Map(allFoundCommits.map(item => [item.hash, item])).values(),
+  ]
 }

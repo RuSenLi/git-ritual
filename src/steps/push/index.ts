@@ -8,9 +8,9 @@ export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
   const { cwd } = globals
   const remote = step.with.remote ?? globals.remote ?? 'origin'
 
-  const branchesToPush = Array.isArray(step.with.branches)
-    ? step.with.branches
-    : [step.with.branches]
+  const branchesToPush = Array.isArray(step.with.targetBranches)
+    ? step.with.targetBranches
+    : [step.with.targetBranches]
 
   logger.info(`Starting push step for branches: ${branchesToPush.join(', ')}`)
   const originalBranch = await git.getCurrentBranch(cwd)

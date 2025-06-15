@@ -66,12 +66,20 @@ export interface CreatePrStep extends BaseStep {
 }
 
 /**
- * 工具类型：要求 T 的属性中至少有一个必填
+ * 工具类型，它能将一个类型 T 中的某些键（Keys）
+ * 变为“至少一个必填”。
+ *
+ * @example
+ * type MyType = RequireAtLeastOne<{ a?: number, b?: string }, 'a' | 'b'>;
+ * // MyType 现在是 ({ a: number, b?: string } | { a?: number, b: string })
  */
-export type RequireAtLeastOne<
+export type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<
   T,
-  Keys extends keyof T = keyof T,
-> = Keys extends keyof T ? Omit<T, Keys> & Required<Pick<T, Keys>> : never
+  Exclude<keyof T, Keys>
+>
+& {
+  [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
+}[Keys]
 
 export interface commitMessage {
   message: string
@@ -116,7 +124,6 @@ export interface CustomTaskStep extends BaseStep {
 export type GitRitualStep
   = | uses
     | CreatePrStep
-    | HasCommitStep
     | CustomTaskStep
 
 /**

@@ -1,4 +1,4 @@
-import type { BaseStep } from '@/types'
+import type { BaseStep, TargetBranches } from '@/types'
 
 /**
  * push 步骤
@@ -19,7 +19,7 @@ import type { BaseStep } from '@/types'
 export interface PushStep extends BaseStep {
   uses: 'gitritual/push@v1'
   with: {
-    branches: string | string[]
+    targetBranches: TargetBranches
     remote?: string
   }
 }
