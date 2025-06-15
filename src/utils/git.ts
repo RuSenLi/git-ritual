@@ -430,3 +430,26 @@ export async function findCommitsByCriteria(
     ...new Map(allFoundCommits.map(item => [item.hash, item])).values(),
   ]
 }
+
+/**
+ * 安全地切换回操作开始前的原始分支
+ * @param originalBranch - 脚本开始时用户所在的分支
+ * @param cwd - 工作目录
+ */
+export async function safeCheckoutOriginalBranch(
+  originalBranch: string,
+  cwd: string,
+) {
+  try {
+    logger.info(
+      `\nStep finished. Switching back to original branch "${originalBranch}".`,
+    )
+    await gitCheckout(originalBranch, cwd)
+  }
+  catch (e: any) {
+    logger.warn(
+      `⚠️  Warning: All tasks completed, but failed to switch back to the original branch "${originalBranch}". Please switch manually.`,
+    )
+    logger.warn(`   Reason: ${e.message}`)
+  }
+}

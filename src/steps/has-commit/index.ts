@@ -113,6 +113,6 @@ export async function handleHasCommit(
   note(summaryLines.join('\n'), 'Has-Commit Audit Report')
 
   // 4. 收尾工作
-  await git.gitCheckout(originalBranch, cwd)
+  await git.safeCheckoutOriginalBranch(originalBranch, globals.cwd)
   logger.success('🎉 Has-commit step completed successfully!')
 }

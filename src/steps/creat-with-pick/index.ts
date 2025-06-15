@@ -95,16 +95,5 @@ export async function handleCreateWithPick(
     throw error
   }
 
-  try {
-    logger.info(
-      `\nStep finished. Switching back to original branch "${originalBranch}".`,
-    )
-    await git.gitCheckout(originalBranch, cwd)
-  }
-  catch (e: any) {
-    logger.warn(
-      `⚠️  Warning: All tasks completed, but failed to switch back to the original branch "${originalBranch}". Please switch manually.`,
-    )
-    logger.warn(`   Reason: ${e.message}`)
-  }
+  await git.safeCheckoutOriginalBranch(originalBranch, globals.cwd)
 }

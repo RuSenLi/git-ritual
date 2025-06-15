@@ -11,7 +11,7 @@ interface ReportOptions {
 }
 
 /**
- * 打印总结报告
+ * 打印总结报告以及切换
  * @param options
  */
 export async function reportAndFinalizeStep(options: ReportOptions) {
@@ -42,18 +42,7 @@ export async function reportAndFinalizeStep(options: ReportOptions) {
     `\nStep finished. Switching back to original branch "${originalBranch}".`,
   )
 
-  try {
-    logger.info(
-      `\nStep finished. Switching back to original branch "${originalBranch}".`,
-    )
-    await git.gitCheckout(originalBranch, cwd)
-  }
-  catch (e: any) {
-    logger.warn(
-      `⚠️  Warning: All tasks completed, but failed to switch back to the original branch "${originalBranch}". Please switch manually.`,
-    )
-    logger.warn(`   Reason: ${e.message}`)
-  }
+  await git.safeCheckoutOriginalBranch(originalBranch, cwd)
 
   // 4. 如果有任何失败，则抛出最终错误，使整个步骤状态为失败
   if (failedItems.length > 0) {
