@@ -62,15 +62,6 @@ export async function prepareBranch(
 }
 
 /**
- * 从 step 配置中获取并格式化目标分支列表
- */
-export function getTargetBranches(step: CherryPickStep): string[] {
-  return Array.isArray(step.with.targetBranches)
-    ? step.with.targetBranches
-    : [step.with.targetBranches]
-}
-
-/**
  * 从 step 配置中获取并格式化 commit hashes 列表
  */
 export function getCommitHashes(step: CherryPickStep): string[] {

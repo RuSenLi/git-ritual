@@ -1,5 +1,21 @@
 import type { uses } from './uses'
 
+/**
+ * 工具类型，它能将一个类型 T 中的某些键（Keys）
+ * 变为“至少一个必填”。
+ *
+ * @example
+ * type MyType = RequireAtLeastOne<{ a?: number, b?: string }, 'a' | 'b'>;
+ * // MyType 现在是 ({ a: number, b?: string } | { a?: number, b: string })
+ */
+export type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<
+  T,
+  Exclude<keyof T, Keys>
+>
+& {
+  [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
+}[Keys]
+
 export interface GitRitualGlobals {
   /** @default origin */
   remote?: string
@@ -10,7 +26,11 @@ export interface GitRitualGlobals {
 }
 
 export type CommitHashes = string | string[]
-export type TargetBranches = string | string[]
+type Branches = string | string[]
+/** 支持正则表达式 */
+export type TargetBranches
+  = | Branches
+    | { branches: Branches, isRegex?: boolean }
 
 /**
  * 所有步骤通用字段。
@@ -66,51 +86,6 @@ export interface CreatePrStep extends BaseStep {
 }
 
 /**
- * 工具类型，它能将一个类型 T 中的某些键（Keys）
- * 变为“至少一个必填”。
- *
- * @example
- * type MyType = RequireAtLeastOne<{ a?: number, b?: string }, 'a' | 'b'>;
- * // MyType 现在是 ({ a: number, b?: string } | { a?: number, b: string })
- */
-export type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<
-  T,
-  Exclude<keyof T, Keys>
->
-& {
-  [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
-}[Keys]
-
-export interface commitMessage {
-  message: string
-  author?: string
-  date?: string
-}
-export type CommitMessages
-  = | string
-    | string[]
-    | commitMessage
-    | commitMessage[]
-
-/**
- * 检查目标分支是否包含指定提交信息。
- * 对应 git 命令：
- * 1. git fetch --all
- * 2. git checkout <targetBranch>
- * 3. git pull --ff-only <remote> <targetBranch>
- * 4. git log --grep <message1> --grep <message2> ...
- */
-export interface HasCommitStep extends BaseStep {
-  uses: 'gitritual/has-commit@v1'
-  with: {
-    targetBranches: TargetBranches
-  } & RequireAtLeastOne<{
-    commitMessages?: CommitMessages
-    commitHashes?: CommitHashes
-  }>
-}
-
-/**
  * 自定义任务，可执行任意 shell 命令。
  * 对应 git 或其它命令行操作。
  */
@@ -121,10 +96,7 @@ export interface CustomTaskStep extends BaseStep {
 /**
  * 所有支持的步骤类型联合
  */
-export type GitRitualStep
-  = | uses
-    | CreatePrStep
-    | CustomTaskStep
+export type GitRitualStep = uses | CreatePrStep | CustomTaskStep
 
 /**
  * 配置文件主结构

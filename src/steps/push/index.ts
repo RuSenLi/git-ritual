@@ -1,6 +1,7 @@
 import type { PushStep } from './types'
 import type { GitRitualGlobals } from '@/types'
 import { reportAndFinalizeStep } from '@/steps/shared'
+import { resolveTargetBranches } from '@/steps/shared/finders'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
 
@@ -8,9 +9,12 @@ export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
   const { cwd } = globals
   const remote = step.with.remote ?? globals.remote ?? 'origin'
 
-  const branchesToPush = Array.isArray(step.with.targetBranches)
-    ? step.with.targetBranches
-    : [step.with.targetBranches]
+  const { targetBranches } = step.with
+
+  const branchesToPush = await resolveTargetBranches({
+    targetBranches,
+    cwd,
+  })
 
   logger.info(`Starting push step for branches: ${branchesToPush.join(', ')}`)
   const originalBranch = await git.getCurrentBranch(cwd)

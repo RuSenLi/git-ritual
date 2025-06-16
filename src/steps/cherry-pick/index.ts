@@ -1,7 +1,10 @@
 import type { CherryPickStep } from './types'
 import type { GitRitualGlobals } from '@/types'
 import { performCherryPickFlow, reportAndFinalizeStep } from '@/steps/shared'
-import { filterCommitsToApply } from '@/steps/shared/finders'
+import {
+  filterCommitsToApply,
+  resolveTargetBranches,
+} from '@/steps/shared/finders'
 import { isRepositoryInSafeState } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
@@ -16,10 +19,16 @@ export async function handleCherryPick(
   step: CherryPickStep,
   globals: GitRitualGlobals,
 ) {
+  const { cwd } = globals
+  const { targetBranches, commitHashes } = step.with
+  const remote = step.with.remote ?? globals.remote ?? 'origin'
+  const shouldPush = step.with.push ?? globals.push ?? false
+
   // 1. 从配置中获取初始分支列表，并让用户交互式选择
-  const initialTargetBranches = Array.isArray(step.with.targetBranches)
-    ? step.with.targetBranches
-    : [step.with.targetBranches]
+  const initialTargetBranches = await resolveTargetBranches({
+    targetBranches,
+    cwd,
+  })
 
   const branchOptions = initialTargetBranches.map(branch => ({
     value: branch,
@@ -38,14 +47,12 @@ export async function handleCherryPick(
   logger.info(`Will process cherry-pick on: ${selectedBranches.join(', ')}`)
 
   // 2. 安全检查并保存状态
-  await isRepositoryInSafeState(globals.cwd)
-  const originalBranch = await git.getCurrentBranch(globals.cwd)
+  await isRepositoryInSafeState(cwd)
+  const originalBranch = await git.getCurrentBranch(cwd)
 
-  const initialCommitHashes = Array.isArray(step.with.commitHashes)
-    ? step.with.commitHashes
-    : [step.with.commitHashes]
-  const remote = step.with.remote ?? globals.remote ?? 'origin'
-  const shouldPush = step.with.push ?? globals.push ?? false
+  const initialCommitHashes = Array.isArray(commitHashes)
+    ? commitHashes
+    : [commitHashes]
 
   const successfulBranches: string[] = []
   const failedBranches: { branch: string, reason: string }[] = []
@@ -58,17 +65,17 @@ export async function handleCherryPick(
       )
 
       // 准备分支环境
-      if (await git.isBranchTracked(branch, globals.cwd)) {
-        await git.gitFetch(remote, branch, globals.cwd)
-        await git.gitPull(remote, branch, globals.cwd)
+      if (await git.isBranchTracked(branch, cwd)) {
+        await git.gitFetch(remote, branch, cwd)
+        await git.gitPull(remote, branch, cwd)
       }
-      await git.gitCheckout(branch, globals.cwd)
+      await git.gitCheckout(branch, cwd)
 
       // 筛选出需要应用的 commit
       const hashesToPick = await filterCommitsToApply(
         initialCommitHashes,
         branch,
-        globals.cwd,
+        cwd,
       )
       if (hashesToPick.length === 0) {
         successfulBranches.push(`${branch} (no new changes)`)
@@ -83,14 +90,14 @@ export async function handleCherryPick(
 
       // 推送变更
       if (shouldPush && hasChanges) {
-        await git.gitPush(remote, branch, globals.cwd)
+        await git.gitPush(remote, branch, cwd)
       }
       successfulBranches.push(`${branch} (changes applied)`)
     }
     catch (error: any) {
       failedBranches.push({ branch, reason: error.message })
       // 尽力重置，以防影响下一个分支
-      await git.gitReset(globals.cwd).catch(() => {})
+      await git.gitReset(cwd).catch(() => {})
     }
   }
 
@@ -102,6 +109,6 @@ export async function handleCherryPick(
       reason: f.reason,
     })),
     originalBranch,
-    cwd: globals.cwd,
+    cwd,
   })
 }

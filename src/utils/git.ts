@@ -17,7 +17,7 @@ export function getGit(cwd: string): SimpleGit {
 }
 
 /**
- * 一个高阶函数，为异步操作提供交互式重试能力
+ * 为异步操作提供交互式重试能力
  * @param action - 需要执行的异步函数
  * @param messages - 用于 spinner 的提示信息
  * @param messages.start 操作开始时的提示信息
@@ -257,4 +257,37 @@ export async function getHeadHash(cwd: string): Promise<string> {
 export function isCherryPickInProgress(cwd: string): boolean {
   const gitDir = path.join(cwd, '.git')
   return fs.existsSync(path.join(gitDir, 'CHERRY_PICK_HEAD'))
+}
+
+/**
+ * 获取所有不重复的、干净的本地和远程分支的名称列表
+ * @param cwd 工作目录
+ * @returns Promise<string[]>
+ */
+export async function getAllBranchNames(cwd: string): Promise<string[]> {
+  const git = getGit(cwd)
+  const branchSummary = await git.branch(['-a'])
+  const allBranchNames = new Set<string>()
+
+  branchSummary.all.forEach((ref) => {
+    const trimmedRef = ref.trim()
+    // 忽略指向 HEAD 的指针，例如 'remotes/origin/HEAD -> origin/main'
+    if (trimmedRef.includes('->')) {
+      return
+    }
+
+    // 处理远程追踪分支
+    if (trimmedRef.startsWith('remotes/')) {
+      const parts = trimmedRef.split('/')
+      // 确保至少有 remotes/origin/branchname 三部分
+      if (parts.length >= 3) {
+        allBranchNames.add(parts.slice(2).join('/'))
+      }
+    }
+    else {
+      allBranchNames.add(trimmedRef)
+    }
+  })
+
+  return Array.from(allBranchNames)
 }

@@ -5,6 +5,7 @@ import ansis from 'ansis'
 import {
   findAppliedHashesByPatchId,
   findCommitsByCriteria,
+  resolveTargetBranches,
 } from '@/steps/shared/finders'
 import { safeCheckoutOriginalBranch } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
@@ -17,9 +18,10 @@ export async function handleHasCommit(
   const { cwd } = globals
   const { targetBranches, commitHashes, commitMessages } = step.with
 
-  const branchesToCheck = Array.isArray(targetBranches)
-    ? targetBranches
-    : [targetBranches]
+  const branchesToCheck = await resolveTargetBranches({
+    targetBranches,
+    cwd,
+  })
   const hashesToCheck = commitHashes
     ? Array.isArray(commitHashes)
       ? commitHashes

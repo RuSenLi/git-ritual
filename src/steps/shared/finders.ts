@@ -1,8 +1,10 @@
 import type { DefaultLogFields } from 'simple-git'
 import type { CommitMessageCheck } from '@/steps/has-commit/types'
+import type { TargetBranches } from '@/types'
 import { spinner } from '@clack/prompts'
 import { runCommandWithOutput } from '@/utils/exec'
 import { getGit } from '@/utils/git'
+import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
 
 // 查找器 (Finders) 包含了所有用于查找、筛选、查询 Git commit 的共享函数。
@@ -17,7 +19,7 @@ export async function filterCommitsToApply(
 ): Promise<string[]> {
   logger.info(`Checking which changes need to be applied on "${branch}"...`)
 
-  // 1. 一次性调用核心函数，找出所有已应用的 hashes
+  // 1. 找出所有已应用的 hashes
   const appliedHashes = await findAppliedHashesByPatchId(
     commitHashes,
     branch,
@@ -167,4 +169,54 @@ export async function findCommitsByCriteria(
   return [
     ...new Map(allFoundCommits.map(item => [item.hash, item])).values(),
   ]
+}
+
+/**
+ * 解析出最终的目标分支列表
+ */
+export async function resolveTargetBranches(options: {
+  targetBranches: TargetBranches
+  cwd: string
+}): Promise<string[]> {
+  const { targetBranches, cwd } = options
+
+  if (typeof targetBranches === 'string') {
+    return [targetBranches]
+  }
+  if (Array.isArray(targetBranches)) {
+    return targetBranches
+  }
+
+  if (typeof targetBranches === 'object') {
+    const { branches, isRegex } = targetBranches
+    const patterns = Array.isArray(branches) ? branches : [branches]
+
+    // 如果不是正则模式，直接返回对象中的分支列表
+    if (!isRegex) {
+      return patterns
+    }
+
+    // 正则模式下，获取所有分支并进行匹配
+    const allBranches = await git.getAllBranchNames(cwd)
+    const matchedBranches = new Set<string>()
+
+    for (const pattern of patterns) {
+      try {
+        const regex = new RegExp(pattern)
+        for (const branch of allBranches) {
+          if (regex.test(branch)) {
+            matchedBranches.add(branch)
+          }
+        }
+      }
+      catch (e: any) {
+        throw new Error(
+          `Invalid regular expression provided: "${pattern}".\n${e.message}`,
+        )
+      }
+    }
+    return Array.from(matchedBranches)
+  }
+
+  return []
 }
