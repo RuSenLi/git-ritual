@@ -1,10 +1,11 @@
 import type { CherryPickStep } from './types'
 import type { GitRitualGlobals } from '@/types'
-import { filterCommitsToApply, performCherryPickFlow } from '@/steps/shared'
+import { performCherryPickFlow, reportAndFinalizeStep } from '@/steps/shared'
+import { filterCommitsToApply } from '@/steps/shared/finders'
+import { isRepositoryInSafeState } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
 import { promptForMultiSelect } from '@/utils/prompts'
-import { reportAndFinalizeStep } from '@/utils/summary'
 
 /**
  * `uses:cheryy-pick` 步骤的处理器函数
@@ -37,7 +38,7 @@ export async function handleCherryPick(
   logger.info(`Will process cherry-pick on: ${selectedBranches.join(', ')}`)
 
   // 2. 安全检查并保存状态
-  await git.isRepositoryInSafeState(globals.cwd)
+  await isRepositoryInSafeState(globals.cwd)
   const originalBranch = await git.getCurrentBranch(globals.cwd)
 
   const initialCommitHashes = Array.isArray(step.with.commitHashes)

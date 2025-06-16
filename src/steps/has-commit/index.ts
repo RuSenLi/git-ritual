@@ -2,6 +2,11 @@ import type { HasCommitStep } from './types'
 import type { GitRitualGlobals } from '@/types'
 import { note } from '@clack/prompts'
 import ansis from 'ansis'
+import {
+  findAppliedHashesByPatchId,
+  findCommitsByCriteria,
+} from '@/steps/shared/finders'
+import { safeCheckoutOriginalBranch } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
 
@@ -52,7 +57,7 @@ export async function handleHasCommit(
     // 1. 如果配置了 commitHashes，则执行 HASH (patch-id) 检查
     if (hashesToCheck.length > 0) {
       summaryLines.push('- Checking by Commit Hash (patch-id):')
-      const foundHashes = await git.findAppliedHashesByPatchId(
+      const foundHashes = await findAppliedHashesByPatchId(
         hashesToCheck,
         branch,
         cwd,
@@ -85,7 +90,7 @@ export async function handleHasCommit(
     // 2. 如果配置了 commitMessages，则执行元数据检查
     if (messagesToCheck.length > 0) {
       summaryLines.push('- Checking by Commit Message & Other Criteria:')
-      const foundCommits = await git.findCommitsByCriteria(
+      const foundCommits = await findCommitsByCriteria(
         messagesToCheck,
         branch,
         cwd,
@@ -113,6 +118,6 @@ export async function handleHasCommit(
   note(summaryLines.join('\n'), 'Has-Commit Audit Report')
 
   // 4. 收尾工作
-  await git.safeCheckoutOriginalBranch(originalBranch, globals.cwd)
+  await safeCheckoutOriginalBranch(originalBranch, globals.cwd)
   logger.success('🎉 Has-commit step completed successfully!')
 }

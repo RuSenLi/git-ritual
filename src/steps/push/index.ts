@@ -1,8 +1,8 @@
 import type { PushStep } from './types'
 import type { GitRitualGlobals } from '@/types'
+import { reportAndFinalizeStep } from '@/steps/shared'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
-import { reportAndFinalizeStep } from '@/utils/summary'
 
 export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
   const { cwd } = globals

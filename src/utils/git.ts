@@ -1,15 +1,12 @@
 import type { SimpleGit, SimpleGitOptions } from 'simple-git'
-import type { DefaultLogFields } from 'simple-git'
-import type { CommitMessageCheck } from '@/steps/has-commit/types'
 import fs from 'node:fs'
 import path from 'node:path'
 import { spinner } from '@clack/prompts'
 import { simpleGit } from 'simple-git'
-import { runCommandWithOutput } from './exec'
 import { logger } from './logger'
 import { confirmOrAbort } from './prompts'
 
-function getGit(cwd: string): SimpleGit {
+export function getGit(cwd: string): SimpleGit {
   const options: Partial<SimpleGitOptions> = {
     baseDir: cwd,
     binary: 'git',
@@ -17,92 +14,6 @@ function getGit(cwd: string): SimpleGit {
     trimmed: false,
   }
   return simpleGit(options)
-}
-
-async function getPatchId(
-  commitHash: string,
-  cwd: string,
-): Promise<string | null> {
-  try {
-    const command = `git show ${commitHash} | git patch-id`
-    const output = await runCommandWithOutput(command, { cwd })
-    return output.split(' ')[0]
-  }
-  catch {
-    return null
-  }
-}
-
-async function getRecentPatchIds(
-  branch: string,
-  cwd: string,
-  count = 200,
-): Promise<Set<string>> {
-  const s = spinner()
-  s.start(`Analyzing recent commits on branch "${branch}"...`)
-  const patchIds = new Set<string>()
-  const git = getGit(cwd)
-  try {
-    const log = await git.log([branch, `--max-count=${count}`])
-    for (const commit of log.all) {
-      const patchId = await getPatchId(commit.hash, cwd)
-      if (patchId) {
-        patchIds.add(patchId)
-      }
-    }
-    s.stop(`Analysis complete.`)
-  }
-  catch {
-    s.stop('Failed to analyze commits.', 1)
-  }
-  return patchIds
-}
-
-export async function isChangeApplied(
-  sourceCommitHash: string,
-  targetBranch: string,
-  cwd: string,
-): Promise<boolean> {
-  const sourcePatchId = await getPatchId(sourceCommitHash, cwd)
-  if (!sourcePatchId) {
-    logger.warn(
-      `Could not generate patch-id for source commit ${sourceCommitHash}. Skipping check.`,
-    )
-    return false
-  }
-
-  const targetPatchIds = await getRecentPatchIds(targetBranch, cwd)
-  return targetPatchIds.has(sourcePatchId)
-}
-
-export async function isRepositoryInSafeState(cwd: string): Promise<boolean> {
-  const status = await getGit(cwd).status()
-  if (!status.isClean()) {
-    logger.error(
-      'Workspace is not clean. Please commit or stash your changes.',
-    )
-    return false
-  }
-
-  const gitDir = path.join(cwd, '.git')
-  const stateFiles = [
-    'CHERRY_PICK_HEAD',
-    'MERGE_HEAD',
-    'REBASE_HEAD',
-    'REVERT_HEAD',
-  ]
-  for (const file of stateFiles) {
-    if (fs.existsSync(path.join(gitDir, file))) {
-      logger.error(
-        `Repository is in the middle of a "${file.split('_')[0]}" operation.`,
-      )
-      logger.warn(
-        'Please resolve or abort the existing operation before running the script.',
-      )
-      return false
-    }
-  }
-  return true
 }
 
 /**
@@ -346,110 +257,4 @@ export async function getHeadHash(cwd: string): Promise<string> {
 export function isCherryPickInProgress(cwd: string): boolean {
   const gitDir = path.join(cwd, '.git')
   return fs.existsSync(path.join(gitDir, 'CHERRY_PICK_HEAD'))
-}
-
-/**
- * 根据 patch-id 查找已应用的 commit hashes
- * @param sourceHashes - 原始 commit hashes 列表
- * @param targetBranch - 目标分支
- * @param cwd - 工作目录
- * @returns Promise<string[]> - 返回在目标分支上找到匹配的 sourceHashes 列表
- */
-export async function findAppliedHashesByPatchId(
-  sourceHashes: string[],
-  targetBranch: string,
-  cwd: string,
-): Promise<string[]> {
-  const foundHashes: string[] = []
-  const targetPatchIds = await getRecentPatchIds(targetBranch, cwd)
-
-  for (const hash of sourceHashes) {
-    const sourcePatchId = await getPatchId(hash, cwd)
-    if (sourcePatchId && targetPatchIds.has(sourcePatchId)) {
-      foundHashes.push(hash)
-    }
-  }
-  return foundHashes
-}
-
-/**
- * 根据 message, author, date 等复杂条件查找 commits
- * @param checks - 检查规则对象列表
- * @param targetBranch - 目标分支
- * @param cwd - 工作目录
- * @returns Promise<DefaultLogFields[]> - 返回所有匹配到的 commit 对象
- */
-export async function findCommitsByCriteria(
-  checks: CommitMessageCheck[],
-  targetBranch: string,
-  cwd: string,
-): Promise<DefaultLogFields[]> {
-  const git = getGit(cwd)
-  const allFoundCommits: DefaultLogFields[] = []
-
-  for (const check of checks) {
-    const logArgs: string[] = [targetBranch]
-
-    if (check.message) {
-      const messages = Array.isArray(check.message)
-        ? check.message
-        : [check.message]
-      for (const msg of messages) {
-        logArgs.push(`--grep=${msg}`)
-      }
-      logArgs.push('-E') // 启用扩展正则
-    }
-
-    if (check.author) {
-      const authors = Array.isArray(check.author)
-        ? check.author
-        : [check.author]
-      for (const author of authors) {
-        logArgs.push(`--author=${author}`)
-      }
-    }
-
-    if (check.date) {
-      if (typeof check.date === 'string') {
-        logArgs.push(`--since=${check.date} 00:00:00`)
-        logArgs.push(`--until=${check.date} 23:59:59`)
-      }
-      else if (Array.isArray(check.date) && check.date.length === 2) {
-        logArgs.push(`--since=${check.date[0]}`)
-        logArgs.push(`--until=${check.date[1]}`)
-      }
-    }
-
-    const log = await git.log(logArgs)
-    allFoundCommits.push(...log.all)
-  }
-
-  if (allFoundCommits.length === 0)
-    return []
-  return [
-    ...new Map(allFoundCommits.map(item => [item.hash, item])).values(),
-  ]
-}
-
-/**
- * 安全地切换回操作开始前的原始分支
- * @param originalBranch - 脚本开始时用户所在的分支
- * @param cwd - 工作目录
- */
-export async function safeCheckoutOriginalBranch(
-  originalBranch: string,
-  cwd: string,
-) {
-  try {
-    logger.info(
-      `\nStep finished. Switching back to original branch "${originalBranch}".`,
-    )
-    await gitCheckout(originalBranch, cwd)
-  }
-  catch (e: any) {
-    logger.warn(
-      `⚠️  Warning: All tasks completed, but failed to switch back to the original branch "${originalBranch}". Please switch manually.`,
-    )
-    logger.warn(`   Reason: ${e.message}`)
-  }
 }

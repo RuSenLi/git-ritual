@@ -1,6 +1,11 @@
 import type { CreateWithPickStep } from './types'
 import type { GitRitualGlobals } from '@/types'
-import { filterCommitsToApply, performCherryPickFlow } from '@/steps/shared'
+import { performCherryPickFlow } from '@/steps/shared'
+import { filterCommitsToApply } from '@/steps/shared/finders'
+import {
+  isRepositoryInSafeState,
+  safeCheckoutOriginalBranch,
+} from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
 import { confirmOrAbort } from '@/utils/prompts'
@@ -24,7 +29,7 @@ export async function handleCreateWithPick(
   )
 
   // 安全检查并保存初始状态
-  await git.isRepositoryInSafeState(cwd)
+  await isRepositoryInSafeState(cwd)
   const originalBranch = await git.getCurrentBranch(cwd)
 
   try {
@@ -95,5 +100,5 @@ export async function handleCreateWithPick(
     throw error
   }
 
-  await git.safeCheckoutOriginalBranch(originalBranch, globals.cwd)
+  await safeCheckoutOriginalBranch(originalBranch, globals.cwd)
 }

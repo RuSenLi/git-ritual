@@ -4,6 +4,8 @@ import { performCherryPickFlow } from '@/steps/shared/perform-cherry-pick-flow'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
 import { promptForMultiSelect } from '@/utils/prompts'
+import { filterCommitsToApply } from '../shared/finders'
+import { isRepositoryInSafeState } from '../shared/lifecycle'
 
 export interface BranchProcessingContext {
   commitHashes: string[]
@@ -23,7 +25,7 @@ export async function processBranch(
   const { commitHashes, remote, cwd, globals, shouldPush } = context
 
   await prepareBranch(branch, remote, cwd)
-  const hashesToPick = await filterUnappliedCommits(commitHashes, branch, cwd)
+  const hashesToPick = await filterCommitsToApply(commitHashes, branch, cwd)
 
   if (hashesToPick.length === 0) {
     logger.success(
@@ -60,35 +62,6 @@ export async function prepareBranch(
 }
 
 /**
- * 筛选出尚未被应用的 commit
- */
-export async function filterUnappliedCommits(
-  commitHashes: string[],
-  branch: string,
-  cwd: string,
-): Promise<string[]> {
-  logger.info('Checking which changes need to be applied...')
-  const hashesToPick: string[] = []
-  for (const hash of commitHashes) {
-    if (!(await git.isChangeApplied(hash, branch, cwd))) {
-      hashesToPick.push(hash)
-      logger.log(
-        `- Change from commit ${hash.substring(0, 7)} needs to be applied.`,
-      )
-    }
-    else {
-      logger.log(
-        `- Change from commit ${hash.substring(
-          0,
-          7,
-        )} already applied. Skipping.`,
-      )
-    }
-  }
-  return hashesToPick
-}
-
-/**
  * 从 step 配置中获取并格式化目标分支列表
  */
 export function getTargetBranches(step: CherryPickStep): string[] {
@@ -122,7 +95,7 @@ export async function promptForBranches(branches: string[]): Promise<string[]> {
  */
 export async function ensureRepoSafe(cwd: string) {
   logger.info('Performing pre-flight safety checks...')
-  if (!(await git.isRepositoryInSafeState(cwd))) {
+  if (!(await isRepositoryInSafeState(cwd))) {
     throw new Error(
       'Pre-flight safety check failed. Please clean up your repository state.',
     )

@@ -1,5 +1,5 @@
 import { note } from '@clack/prompts'
-import * as git from '@/utils/git'
+import { safeCheckoutOriginalBranch } from '@/steps/shared/lifecycle'
 import { logger } from '@/utils/logger'
 
 interface ReportOptions {
@@ -42,7 +42,7 @@ export async function reportAndFinalizeStep(options: ReportOptions) {
     `\nStep finished. Switching back to original branch "${originalBranch}".`,
   )
 
-  await git.safeCheckoutOriginalBranch(originalBranch, cwd)
+  await safeCheckoutOriginalBranch(originalBranch, cwd)
 
   // 4. 如果有任何失败，则抛出最终错误，使整个步骤状态为失败
   if (failedItems.length > 0) {

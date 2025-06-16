@@ -1,4 +1,4 @@
-import type { BaseStep, RequireAtLeastOne } from '@/types'
+import type { BaseStep, RequireAtLeastOne, TargetBranches } from '@/types'
 
 /**
  * 定义按 commit message 进行检查的规则对象
@@ -26,13 +26,14 @@ interface HasCommitWithBase {
   /**
    * 需要被检查的一个或多个分支名称
    */
-  targetBranches: string | string[]
+  targetBranches: TargetBranches
   /**
    * 一个或多个要通过 patch-id 检查的 commit HASH
    */
   commitHashes?: string | string[]
   /**
    * 一个或多个按 message、author、date 检查的规则对象
+   * 通过 git log --grep <message1> 检查
    */
   commitMessages?: CommitMessageCheck | CommitMessageCheck[]
 }
