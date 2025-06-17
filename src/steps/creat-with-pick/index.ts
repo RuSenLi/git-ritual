@@ -19,7 +19,7 @@ export async function handleCreateWithPick(
   step: CreateWithPickStep,
   globals: GitRitualGlobals,
 ) {
-  const { cwd } = globals
+  const { cwd, patchIdCheckDepth } = globals
   const { baseBranch, newBranch, commitHashes } = step.with
   const remote = step.with.remote ?? globals.remote ?? 'origin'
   const shouldPush = step.with.push ?? globals.push ?? false
@@ -75,6 +75,7 @@ export async function handleCreateWithPick(
       initialHashes,
       newBranch,
       cwd,
+      patchIdCheckDepth,
     )
 
     if (hashesToPick.length === 0) {

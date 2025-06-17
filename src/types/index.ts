@@ -23,6 +23,13 @@ export interface GitRitualGlobals {
   push?: boolean
   /** @default false */
   cwd: string
+  /**
+   * patch-id 检查深度。
+   * 指定在目标分支上向前追溯多少个 commit 来检查变更是否存在
+   * 数字越大越安全，但速度会越慢
+   * @default 30
+   */
+  patchIdCheckDepth?: number
 }
 
 export type CommitHashes = string | string[]

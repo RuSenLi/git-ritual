@@ -25,7 +25,7 @@ export async function processBranch(
   const { commitHashes, remote, cwd, globals, shouldPush } = context
 
   await prepareBranch(branch, remote, cwd)
-  const hashesToPick = await filterCommitsToApply(commitHashes, branch, cwd)
+  const hashesToPick = await filterCommitsToApply(commitHashes, branch, cwd, globals.patchIdCheckDepth)
 
   if (hashesToPick.length === 0) {
     logger.success(

@@ -19,7 +19,7 @@ export async function handleCherryPick(
   step: CherryPickStep,
   globals: GitRitualGlobals,
 ) {
-  const { cwd } = globals
+  const { cwd, patchIdCheckDepth } = globals
   const { targetBranches, commitHashes } = step.with
   const remote = step.with.remote ?? globals.remote ?? 'origin'
   const shouldPush = step.with.push ?? globals.push ?? false
@@ -76,6 +76,7 @@ export async function handleCherryPick(
         initialCommitHashes,
         branch,
         cwd,
+        patchIdCheckDepth,
       )
       if (hashesToPick.length === 0) {
         successfulBranches.push(`${branch} (no new changes)`)

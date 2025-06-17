@@ -16,6 +16,7 @@ export async function filterCommitsToApply(
   commitHashes: string[],
   branch: string,
   cwd: string,
+  count?: number,
 ): Promise<string[]> {
   logger.info(`Checking which changes need to be applied on "${branch}"...`)
 
@@ -24,6 +25,7 @@ export async function filterCommitsToApply(
     commitHashes,
     branch,
     cwd,
+    count,
   )
   const appliedHashesSet = new Set(appliedHashes)
 
@@ -66,10 +68,10 @@ async function getPatchId(
 async function getRecentPatchIds(
   branch: string,
   cwd: string,
-  count = 500,
+  count = 30,
 ): Promise<Set<string>> {
   const s = spinner()
-  s.start(`Analyzing recent commits on branch "${branch}"...`)
+  s.start(`Analyzing last ${count} commits on branch "${branch}"...`)
   const patchIds = new Set<string>()
   const git = getGit(cwd)
   try {
@@ -93,15 +95,17 @@ async function getRecentPatchIds(
  * @param sourceHashes - 原始 commit hashes 列表
  * @param targetBranch - 目标分支
  * @param cwd - 工作目录
+ * @param count - patchId 检查深度
  * @returns Promise<string[]> - 返回在目标分支上找到匹配的 sourceHashes 列表
  */
 export async function findAppliedHashesByPatchId(
   sourceHashes: string[],
   targetBranch: string,
   cwd: string,
+  count?: number,
 ): Promise<string[]> {
   const foundHashes: string[] = []
-  const targetPatchIds = await getRecentPatchIds(targetBranch, cwd)
+  const targetPatchIds = await getRecentPatchIds(targetBranch, cwd, count)
 
   for (const hash of sourceHashes) {
     const sourcePatchId = await getPatchId(hash, cwd)
