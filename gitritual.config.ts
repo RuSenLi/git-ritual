@@ -1,54 +1,174 @@
+import type { CommitHashes, GitRitualStep } from './src/types'
+import type {
+  CherryPickStep,
+  CreateWithPickStep,
+  HasCommitStep,
+  PushStep,
+} from './src/types/uses'
 import { defineConfig } from './src'
 
-export default defineConfig({
-  globals: {
-    cwd: 'C:/Users/RuSenLi/Desktop/git-play',
-    push: false,
-  },
-  steps: [
-    // {
-    //   name: 'cherry-pick',
-    //   uses: 'gitritual/cherry-pick@v1',
-    //   with: {
-    //     commitHashes: ['560ece7b0d018a0bc1baa54e7f33cca4833b13f1', 'aadb7bc9ae4196f719cf4f2501a933e3e95d1a45'],
-    //     targetBranches: ['ritual-beta', 'ritual-dev'],
-    //   },
-    // },
-    // {
-    //   name: 'push',
-    //   uses: 'gitritual/push@v1',
-    //   with: {
-    //     branches: ['ritual-dev', 'ritual-beta'],
-    //   },
-    // },
-    {
-      name: '基于保护分支创建修复分支，并挑选修复代码',
+interface ProjectOptions {
+  remote?: string
+  branches: string[]
+  commitHashes?: CommitHashes
+}
+
+export default defineConfig(() => {
+  const cwd = {
+    pc: 'D:/rusenli/project/dfs-front-hotfix',
+    mobile: 'D:/rusenli/project/dfs-web',
+  }
+
+  const globals = {
+    cwd: cwd.mobile,
+    push: true,
+  }
+
+  const commitHashes: CommitHashes = [
+    'af21a692b8be6b178b558b86c162560d5addb954',
+  ]
+
+  const newBranchName = {
+    version: '3.3',
+    author: 'lrs',
+    info: '1016323_hotfix',
+  }
+
+  const getNewBranchName = (b: string) => {
+    const { version, author, info } = newBranchName
+    return `f_${version}_${b}_${author}/${info}`
+  }
+
+  const dfs = {
+    commitHashes,
+    // remote: 'https://e.coding.net/yhmsi/dfs/dfs-front.git',
+    branches: [
+      'sccj',
+      'myzy',
+      'zzyy',
+      'ynwlt',
+      'jxcj',
+      'gzqg',
+      'cdnk',
+      'szzx',
+      'jjzd',
+    ],
+  }
+
+  const ics = {
+    commitHashes,
+    remote: 'https://e.coding.net/yhmsi/ics/ics-front.git',
+    branches: ['jsnm', 'xzgy'],
+  }
+
+  const DEVELOP = 'develop'
+  const BETA = 'beta'
+  const HOTFIX = 'hotfix'
+  const RELEASE = 'release'
+
+  const charryPickSteps = ({
+    remote,
+    branches,
+    commitHashes: hash,
+  }: ProjectOptions): CherryPickStep[] => {
+    const targetBranches = branches.flatMap(b => [
+      `${b}-${DEVELOP}`,
+      `${b}-${BETA}`,
+      `^${b}-.*-${HOTFIX}$`,
+    ])
+    return [
+      {
+        name: `cherry-pick`,
+        uses: 'gitritual/cherry-pick@v1',
+        with: {
+          remote,
+          targetBranches: {
+            branches: targetBranches,
+            isRegex: true,
+          },
+          commitHashes: hash ?? commitHashes,
+        },
+      },
+    ]
+  }
+
+  const creteWithPickSteps = ({
+    remote,
+    branches,
+    commitHashes: hash,
+  }: ProjectOptions): CreateWithPickStep[] => {
+    const tasks = branches.map((b) => {
+      return {
+        baseBranch: `${b}-${RELEASE}`,
+        newBranch: getNewBranchName(b),
+        commitHashes: hash ?? commitHashes,
+      }
+    })
+
+    return [{
+      name: `create-with-pick`,
       uses: 'gitritual/create-with-pick@v1',
       with: {
-        tasks: [
-          {
-            baseBranch: 'ritual-hotfix',
-            newBranch: 'f_ritual-hotfix/beta',
-            commitHashes: 'bcb752e180297e2b4c8316dc81fc86c55840af15',
-          },
-          {
-            baseBranch: 'ritual-beta',
-            newBranch: 'f_ritual-beta/hotfix',
-            commitHashes: '485d9e41163b6edb8b0d71e0530de687a90cb88c',
-          },
-        ],
+        tasks,
+        remote,
       },
-    },
-    {
-      name: 'has-commit',
-      uses: 'gitritual/has-commit@v1',
-      with: {
-        targetBranches: {
-          branches: ['/ritual-/'],
-          isRegex: true,
+    }]
+  }
+
+  const hasCommitSteps = ({
+    branches,
+    commitHashes: hash,
+  }: ProjectOptions): HasCommitStep[] => {
+    const targetBranches = branches.flatMap(b => [`^${b}-`])
+
+    return [
+      {
+        name: `has-commit`,
+        uses: 'gitritual/has-commit@v1',
+        with: {
+          targetBranches: {
+            branches: targetBranches,
+            isRegex: true,
+          },
+          commitHashes: hash ?? commitHashes,
         },
-        commitHashes: 'bcb752e180297e2b4c8316dc81fc86c55840af15',
       },
-    },
-  ],
+    ]
+  }
+
+  const pushSteps = ({ branches }: ProjectOptions): PushStep[] => {
+    const targetBranches = branches.flatMap(b => [
+      `${b}-${DEVELOP}`,
+      `${b}-${BETA}`,
+      `^${b}-.*-${HOTFIX}$`,
+      getNewBranchName(b),
+    ])
+
+    return [
+      {
+        name: 'push',
+        uses: 'gitritual/push@v1',
+        with: {
+          targetBranches: {
+            branches: targetBranches,
+            isRegex: true,
+          },
+        },
+      },
+    ]
+  }
+
+  const generateSteps = (options: ProjectOptions): GitRitualStep[] => {
+    return [
+      ...charryPickSteps(options),
+      ...creteWithPickSteps(options),
+      ...hasCommitSteps(options),
+      ...pushSteps(options),
+    ]
+  }
+
+  return {
+    globals,
+    steps: generateSteps(dfs),
+  }
 })
