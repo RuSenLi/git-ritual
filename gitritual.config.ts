@@ -39,16 +39,16 @@ export default defineConfig({
         ],
       },
     },
-    // {
-    //   name: 'has-commit',
-    //   uses: 'gitritual/has-commit@v1',
-    //   with: {
-    //     targetBranches: {
-    //       branches: ['/ritual-/'],
-    //       isRegex: true,
-    //     },
-    //     commitHashes: 'bcb752e180297e2b4c8316dc81fc86c55840af15',
-    //   },
-    // },
+    {
+      name: 'has-commit',
+      uses: 'gitritual/has-commit@v1',
+      with: {
+        targetBranches: {
+          branches: ['/ritual-/'],
+          isRegex: true,
+        },
+        commitHashes: 'bcb752e180297e2b4c8316dc81fc86c55840af15',
+      },
+    },
   ],
 })

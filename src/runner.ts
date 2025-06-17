@@ -1,4 +1,4 @@
-import type { Config, CustomTaskStep } from '@/types'
+import type { Config, CustomTaskStep, GitRitualStep } from '@/types'
 import type {
   CherryPickStep,
   CreateWithPickStep,
@@ -6,6 +6,7 @@ import type {
   PushStep,
 } from '@/types/uses'
 import { gitFetchAll } from '@/utils/git'
+import { promptForMultiSelect } from '@/utils/prompts'
 import {
   handleCherryPick,
   handleCreateWithPick,
@@ -28,10 +29,35 @@ async function runCustomTask(step: CustomTaskStep, cwd: string) {
 export async function runSteps(config: Config) {
   const { steps, globals } = config
 
+  let selectedSteps: GitRitualStep[]
+
+  if (globals.skipStepSelection) {
+    logger.info('Step selection prompt skipped as per configuration.')
+    selectedSteps = steps
+  }
+  else {
+    const stepOptions = steps.map((step: GitRitualStep, i) => ({
+      value: i.toString(),
+      label: step.name, // 使用步骤名称作为标签
+    }))
+
+    const selectedIndexes = await promptForMultiSelect(
+      'Which steps to run? (Press <a> to toggle all)',
+      stepOptions,
+    )
+
+    selectedSteps = selectedIndexes.map(index => steps[Number(index)])
+  }
+
+  if (selectedSteps.length === 0) {
+    logger.warn('No steps selected. Exiting.')
+    return
+  }
+
   logger.info('Performing initial sync with remotes...')
   await gitFetchAll(globals.cwd)
 
-  for (const step of steps) {
+  for (const step of selectedSteps) {
     logger.log('')
     if (step.name) {
       logger.success(`===== Running step: ${step.name} =====`)

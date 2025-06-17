@@ -30,6 +30,11 @@ export interface GitRitualGlobals {
    * @default 30
    */
   patchIdCheckDepth?: number
+  /**
+   * 是否跳过选择要执行的steps
+   * @default false
+   */
+  skipStepSelection?: boolean
 }
 
 export type CommitHashes = string | string[]
