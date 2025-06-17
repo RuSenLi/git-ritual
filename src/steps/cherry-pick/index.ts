@@ -64,12 +64,12 @@ export async function handleCherryPick(
         `\nProcessing branch: ${branch} (${i + 1}/${selectedBranches.length})`,
       )
 
+      await git.gitCheckout(branch, cwd)
       // 准备分支环境
       if (await git.isBranchTracked(branch, cwd)) {
         await git.gitFetch(remote, branch, cwd)
         await git.gitPull(remote, branch, cwd)
       }
-      await git.gitCheckout(branch, cwd)
 
       // 筛选出需要应用的 commit
       const hashesToPick = await filterCommitsToApply(

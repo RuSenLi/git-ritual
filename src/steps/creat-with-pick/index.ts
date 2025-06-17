@@ -35,11 +35,12 @@ export async function handleCreateWithPick(
   try {
     // 准备基底分支环境
     logger.info(`Preparing base branch "${baseBranch}"...`)
+
+    await git.gitCheckout(baseBranch, cwd)
     if (await git.isBranchTracked(baseBranch, cwd)) {
       await git.gitFetch(remote, baseBranch, cwd)
       await git.gitPull(remote, baseBranch, cwd)
     }
-    await git.gitCheckout(baseBranch, cwd)
 
     // 检查新分支是否存在，并与用户交互
     if (await git.isBranchNameInUse(newBranch, cwd)) {
