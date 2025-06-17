@@ -21,5 +21,10 @@ export interface PushStep extends BaseStep {
   with: {
     targetBranches: TargetBranches
     remote?: string
+    /**
+     * 跳过分支选择
+     * @default false
+     */
+    skipBranchSelection?: boolean
   }
 }

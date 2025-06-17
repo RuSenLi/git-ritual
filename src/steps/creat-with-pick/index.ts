@@ -1,13 +1,14 @@
-import type { CreateWithPickStep } from './types'
+import type { CreateWithPickStep, CreationTask } from './types'
 import type { GitRitualGlobals } from '@/types'
-import { performCherryPickFlow } from '@/steps/shared'
-import { filterCommitsToApply } from '@/steps/shared/finders'
+import { performCherryPickFlow, reportAndFinalizeStep } from '@/steps/shared'
+import { filterCommitsToApply, toArray } from '@/steps/shared/finders'
 import {
   isRepositoryInSafeState,
-  safeCheckoutOriginalBranch,
+  prepareBranch,
 } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
+import { promptForMultiSelect } from '@/utils/prompts'
 import { confirmOrAbort } from '@/utils/prompts'
 
 /**
@@ -20,87 +21,110 @@ export async function handleCreateWithPick(
   globals: GitRitualGlobals,
 ) {
   const { cwd, patchIdCheckDepth } = globals
-  const { baseBranch, newBranch, commitHashes } = step.with
+  const { tasks, skipTaskSelection } = step.with
   const remote = step.with.remote ?? globals.remote ?? 'origin'
   const shouldPush = step.with.push ?? globals.push ?? false
 
-  logger.info(
-    `Starting step "create-with-pick": from "${baseBranch}" to "${newBranch}"`,
-  )
+  // 从列表中选择任务
+  const taskOptions = tasks.map((task, i) => ({
+    value: i.toString(),
+    label: `Create "${task.newBranch}" from "${task.baseBranch}"`,
+  }))
+
+  let selectedTasks: CreationTask[]
+  if (skipTaskSelection) {
+    logger.info('Task selection prompt skipped as per configuration.')
+    selectedTasks = tasks
+  }
+  else {
+    const selectedIndexes = await promptForMultiSelect(
+      'Which creation tasks to process? (Press <a> to toggle all)',
+      taskOptions,
+    )
+    selectedTasks = selectedIndexes.map(index => tasks[Number(index)])
+  }
+
+  if (selectedTasks.length === 0) {
+    logger.warn('No tasks selected. Exiting step.')
+    return
+  }
+  logger.info(`Will process ${selectedTasks.length} creation task(s).`)
 
   // 安全检查并保存初始状态
   await isRepositoryInSafeState(cwd)
   const originalBranch = await git.getCurrentBranch(cwd)
 
-  try {
-    // 准备基底分支环境
-    logger.info(`Preparing base branch "${baseBranch}"...`)
-
-    await git.gitCheckout(baseBranch, cwd)
-    if (await git.isBranchTracked(baseBranch, cwd)) {
-      await git.gitFetch(remote, baseBranch, cwd)
-      await git.gitPull(remote, baseBranch, cwd)
-    }
-
-    // 检查新分支是否存在，并与用户交互
-    if (await git.isBranchNameInUse(newBranch, cwd)) {
-      const useExisting = await confirmOrAbort(
-        `Branch "${newBranch}" already exists. Use it and continue?`,
-        true,
-      )
-      if (useExisting) {
-        if (await git.isBranchTracked(newBranch, cwd)) {
-          await git.gitFetch(remote, newBranch, cwd)
-          await git.gitPull(remote, newBranch, cwd)
-        }
-        await git.gitCheckout(newBranch, cwd)
-      }
-      else {
-        logger.warn(
-          `Skipping step as user chose not to proceed with existing branch "${newBranch}".`,
-        )
-        await git.gitCheckout(originalBranch, cwd)
-        return
-      }
-    }
-    else {
-      await git.gitCreateBranchFrom(newBranch, baseBranch, cwd)
-    }
-
-    // 筛选并应用 commit
-    const initialHashes = Array.isArray(commitHashes)
-      ? commitHashes
-      : [commitHashes]
-    const hashesToPick = await filterCommitsToApply(
-      initialHashes,
-      newBranch,
-      cwd,
-      patchIdCheckDepth,
+  const successfulItems: string[] = []
+  const failedItems: { item: string, reason: string }[] = []
+  for (const [i, task] of selectedTasks.entries()) {
+    const taskIdentifier = `Task (${task.baseBranch} -> ${task.newBranch})`
+    logger.log(
+      `\nProcessing ${taskIdentifier} (${i + 1}/${selectedTasks.length})`,
     )
 
-    if (hashesToPick.length === 0) {
-      logger.success(
-        `All changes already exist on new branch "${newBranch}". Nothing to do.`,
+    const { baseBranch, newBranch, commitHashes } = task
+
+    try {
+      await prepareBranch(baseBranch, remote, cwd)
+
+      // 检查新分支是否存在，并与用户交互
+      if (await git.isBranchNameInUse(newBranch, cwd)) {
+        const useExisting = await confirmOrAbort(
+          `Branch "${newBranch}" already exists. Use it and continue?`,
+          true,
+        )
+        if (useExisting) {
+          await prepareBranch(newBranch, remote, cwd)
+        }
+        else {
+          logger.warn(
+            `Skipping step as user chose not to proceed with existing branch "${newBranch}".`,
+          )
+          await git.gitCheckout(originalBranch, cwd)
+          return
+        }
+      }
+      else {
+        await git.gitCreateBranchFrom(newBranch, baseBranch, cwd)
+      }
+
+      // 筛选并应用 commit
+      const initialHashes = toArray(commitHashes)
+      const hashesToPick = await filterCommitsToApply(
+        initialHashes,
+        newBranch,
+        cwd,
+        patchIdCheckDepth,
       )
-      await git.gitCheckout(originalBranch, cwd)
-      return
+
+      if (hashesToPick.length === 0) {
+        successfulItems.push(`${taskIdentifier} (no new changes)`)
+        continue
+      }
+
+      const hasChanges = await performCherryPickFlow({
+        hashesToPick,
+        globals,
+      })
+
+      if (shouldPush && hasChanges) {
+        await git.gitPush(remote, newBranch, cwd)
+      }
+      successfulItems.push(`${taskIdentifier} (changes applied)`)
     }
-
-    const hasChanges = await performCherryPickFlow({
-      hashesToPick,
-      globals,
-    })
-
-    if (shouldPush && hasChanges) {
-      await git.gitPush(remote, newBranch, cwd)
+    catch (error: any) {
+      failedItems.push({ item: taskIdentifier, reason: error.message })
+      // 尽力重置 Git 状态，以防影响下一个任务
+      await git.gitReset(cwd).catch(() => {})
     }
-    logger.success('🎉 Create-with-pick step completed successfully!')
-  }
-  catch (error) {
-    logger.error(`An unrecoverable error occurred during create-with-pick.`)
-    await git.gitCheckout(originalBranch, cwd).catch(() => {})
-    throw error
   }
 
-  await safeCheckoutOriginalBranch(originalBranch, globals.cwd)
+  // 4. 生成总结报告并安全地结束
+  await reportAndFinalizeStep({
+    stepName: 'Create-with-Pick',
+    successfulItems,
+    failedItems,
+    originalBranch,
+    cwd,
+  })
 }

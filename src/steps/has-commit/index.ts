@@ -5,8 +5,9 @@ import ansis from 'ansis'
 import {
   findAppliedHashesByPatchId,
   findCommitsByCriteria,
-  resolveTargetBranches,
+  toArray,
 } from '@/steps/shared/finders'
+import { selectBranchesToProcess } from '@/steps/shared/lifecycle'
 import { safeCheckoutOriginalBranch } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
@@ -16,31 +17,28 @@ export async function handleHasCommit(
   globals: GitRitualGlobals,
 ) {
   const { cwd } = globals
-  const { targetBranches, commitHashes, commitMessages } = step.with
+  const { targetBranches, commitHashes, commitMessages, skipBranchSelection }
+    = step.with
 
-  const branchesToCheck = await resolveTargetBranches({
+  const selectedBranches = await selectBranchesToProcess({
     targetBranches,
+    skipBranchSelection,
     cwd,
+    message:
+      'Which branches to process for has-commit? (Press <a> to toggle all)',
   })
-  const hashesToCheck = commitHashes
-    ? Array.isArray(commitHashes)
-      ? commitHashes
-      : [commitHashes]
-    : []
-  const messagesToCheck = commitMessages
-    ? Array.isArray(commitMessages)
-      ? commitMessages
-      : [commitMessages]
-    : []
+
+  const hashesToCheck = commitHashes ? toArray(commitHashes) : []
+  const messagesToCheck = commitMessages ? toArray(commitMessages) : []
 
   logger.info(
-    `Auditing commit existence on branches: ${branchesToCheck.join(', ')}`,
+    `Auditing commit existence on branches: ${selectedBranches.join(', ')}`,
   )
   const originalBranch = await git.getCurrentBranch(cwd)
 
   const summaryLines: string[] = []
 
-  for (const branch of branchesToCheck) {
+  for (const branch of selectedBranches) {
     summaryLines.push(ansis.bold.underline(`\nBranch: ${branch}`))
 
     // 尝试切换到分支，如果失败则记录并跳过

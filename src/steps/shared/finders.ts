@@ -176,6 +176,30 @@ export async function findCommitsByCriteria(
 }
 
 /**
+ * 解析字符串创建正则函数
+ * @param pattern - 提供的字符串
+ * @returns RegExp 对象
+ */
+function createRegex(pattern: string): RegExp {
+  const regexLiteralMatch = pattern.match(/^\/(.*)\/([gimsuy]*)$/)
+
+  if (regexLiteralMatch) {
+    const [, regexBody, regexFlags] = regexLiteralMatch
+    try {
+      return new RegExp(regexBody, regexFlags)
+    }
+    catch (e: any) {
+      throw new Error(
+        `Invalid regular expression flags provided: "${regexFlags}".\n${e.message}`,
+      )
+    }
+  }
+  else {
+    return new RegExp(pattern)
+  }
+}
+
+/**
  * 解析出最终的目标分支列表
  */
 export async function resolveTargetBranches(options: {
@@ -206,7 +230,7 @@ export async function resolveTargetBranches(options: {
 
     for (const pattern of patterns) {
       try {
-        const regex = new RegExp(pattern)
+        const regex = createRegex(pattern)
         for (const branch of allBranches) {
           if (regex.test(branch)) {
             matchedBranches.add(branch)
@@ -223,4 +247,8 @@ export async function resolveTargetBranches(options: {
   }
 
   return []
+}
+
+export function toArray<T>(hashes: T | T[]): T[] {
+  return Array.isArray(hashes) ? hashes : [hashes]
 }

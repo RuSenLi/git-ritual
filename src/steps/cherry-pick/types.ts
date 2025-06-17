@@ -16,5 +16,10 @@ export interface CherryPickStep extends BaseStep {
     commitHashes: CommitHashes
     push?: boolean
     remote?: string
+    /**
+     * 跳过分支选择
+     * @default false
+     */
+    skipBranchSelection?: boolean
   }
 }

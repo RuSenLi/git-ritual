@@ -1,7 +1,7 @@
 import type { PushStep } from './types'
 import type { GitRitualGlobals } from '@/types'
 import { reportAndFinalizeStep } from '@/steps/shared'
-import { resolveTargetBranches } from '@/steps/shared/finders'
+import { selectBranchesToProcess } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
 
@@ -9,14 +9,17 @@ export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
   const { cwd } = globals
   const remote = step.with.remote ?? globals.remote ?? 'origin'
 
-  const { targetBranches } = step.with
+  const { targetBranches, skipBranchSelection } = step.with
 
-  const branchesToPush = await resolveTargetBranches({
+  const selectedBranches = await selectBranchesToProcess({
     targetBranches,
+    skipBranchSelection,
     cwd,
+    message:
+      'Which branches to process for push? (Press <a> to toggle all)',
   })
 
-  logger.info(`Starting push step for branches: ${branchesToPush.join(', ')}`)
+  logger.info(`Starting push step for branches: ${selectedBranches.join(', ')}`)
   const originalBranch = await git.getCurrentBranch(cwd)
 
   // 1. 初始化成功和失败的列表
@@ -24,7 +27,7 @@ export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
   const failedPushes: { branch: string, reason: string }[] = []
 
   // 2. 遍历所有要推送的分支
-  for (const branch of branchesToPush) {
+  for (const branch of selectedBranches) {
     try {
       logger.log(`\nProcessing branch: ${branch}`)
       await git.gitCheckout(branch, cwd)

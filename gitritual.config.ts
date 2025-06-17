@@ -3,7 +3,7 @@ import { defineConfig } from './src'
 export default defineConfig({
   globals: {
     cwd: 'C:/Users/RuSenLi/Desktop/git-play',
-    push: true,
+    push: false,
   },
   steps: [
     // {
@@ -25,10 +25,30 @@ export default defineConfig({
       name: '基于保护分支创建修复分支，并挑选修复代码',
       uses: 'gitritual/create-with-pick@v1',
       with: {
-        baseBranch: 'main',
-        newBranch: 'f_ritual_lrs/10086',
-        commitHashes: '485d9e41163b6edb8b0d71e0530de687a90cb88c',
+        tasks: [
+          {
+            baseBranch: 'ritual-hotfix',
+            newBranch: 'f_ritual-hotfix/beta',
+            commitHashes: 'bcb752e180297e2b4c8316dc81fc86c55840af15',
+          },
+          {
+            baseBranch: 'ritual-beta',
+            newBranch: 'f_ritual-beta/hotfix',
+            commitHashes: '485d9e41163b6edb8b0d71e0530de687a90cb88c',
+          },
+        ],
       },
     },
+    // {
+    //   name: 'has-commit',
+    //   uses: 'gitritual/has-commit@v1',
+    //   with: {
+    //     targetBranches: {
+    //       branches: ['/ritual-/'],
+    //       isRegex: true,
+    //     },
+    //     commitHashes: 'bcb752e180297e2b4c8316dc81fc86c55840af15',
+    //   },
+    // },
   ],
 })

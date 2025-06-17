@@ -1,14 +1,14 @@
 import type { CherryPickStep } from './types'
 import type { GitRitualGlobals } from '@/types'
 import { performCherryPickFlow, reportAndFinalizeStep } from '@/steps/shared'
+import { filterCommitsToApply, toArray } from '@/steps/shared/finders'
 import {
-  filterCommitsToApply,
-  resolveTargetBranches,
-} from '@/steps/shared/finders'
-import { isRepositoryInSafeState } from '@/steps/shared/lifecycle'
+  isRepositoryInSafeState,
+  prepareBranch,
+  selectBranchesToProcess,
+} from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
-import { promptForMultiSelect } from '@/utils/prompts'
 
 /**
  * `uses:cheryy-pick` 步骤的处理器函数
@@ -20,25 +20,18 @@ export async function handleCherryPick(
   globals: GitRitualGlobals,
 ) {
   const { cwd, patchIdCheckDepth } = globals
-  const { targetBranches, commitHashes } = step.with
+  const { targetBranches, commitHashes, skipBranchSelection } = step.with
   const remote = step.with.remote ?? globals.remote ?? 'origin'
   const shouldPush = step.with.push ?? globals.push ?? false
 
   // 1. 从配置中获取初始分支列表，并让用户交互式选择
-  const initialTargetBranches = await resolveTargetBranches({
+  const selectedBranches = await selectBranchesToProcess({
     targetBranches,
+    skipBranchSelection,
     cwd,
+    message:
+      'Which branches to process for cherry-pick? (Press <a> to toggle all)',
   })
-
-  const branchOptions = initialTargetBranches.map(branch => ({
-    value: branch,
-    label: branch,
-  }))
-
-  const selectedBranches = await promptForMultiSelect(
-    'Which branches to process for cherry-pick? (Press <a> to toggle all)',
-    branchOptions,
-  )
 
   if (selectedBranches.length === 0) {
     logger.warn('No branches selected. Skipping cherry-pick step.')
@@ -50,9 +43,7 @@ export async function handleCherryPick(
   await isRepositoryInSafeState(cwd)
   const originalBranch = await git.getCurrentBranch(cwd)
 
-  const initialCommitHashes = Array.isArray(commitHashes)
-    ? commitHashes
-    : [commitHashes]
+  const initialCommitHashes = toArray(commitHashes)
 
   const successfulBranches: string[] = []
   const failedBranches: { branch: string, reason: string }[] = []
@@ -64,12 +55,7 @@ export async function handleCherryPick(
         `\nProcessing branch: ${branch} (${i + 1}/${selectedBranches.length})`,
       )
 
-      await git.gitCheckout(branch, cwd)
-      // 准备分支环境
-      if (await git.isBranchTracked(branch, cwd)) {
-        await git.gitFetch(remote, branch, cwd)
-        await git.gitPull(remote, branch, cwd)
-      }
+      await prepareBranch(branch, remote, cwd)
 
       // 筛选出需要应用的 commit
       const hashesToPick = await filterCommitsToApply(
