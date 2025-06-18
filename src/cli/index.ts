@@ -7,10 +7,15 @@ import { logger } from '../utils/logger'
 export async function main(): Promise<void> {
   try {
     // 使用 c12 加载配置文件
-    const { config } = await loadConfig<Config>({
+    const loaded = await loadConfig<Config>({
       name: 'gitritual', // 配置文件名，会寻找 gitritual.config.ts 等
       rcFile: false, // 禁用 .gitritualrc
     })
+
+    const config
+      = typeof loaded.config === 'function'
+        ? await (loaded.config as () => Promise<Config>)()
+        : loaded.config
 
     if (!config) {
       logger.error('Configuration file (gitritual.config.ts) not found.')

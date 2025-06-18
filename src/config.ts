@@ -1,11 +1,7 @@
 import type { Config } from './types'
 
-type props = Config | (() => Config)
+type DefineConfig = Config | Promise<Config> | (() => Config | Promise<Config>)
 
-export function defineConfig(config: props): Config {
-  if (typeof config === 'function') {
-    config = config()
-  }
-
+export function defineConfig<T extends DefineConfig>(config: T): T {
   return config
 }
