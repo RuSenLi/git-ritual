@@ -291,3 +291,13 @@ export async function getAllBranchNames(cwd: string): Promise<string[]> {
 
   return Array.from(allBranchNames)
 }
+
+/**
+ * 检查指定目录是否为 git 仓库
+ * @param cwd 工作目录
+ * @returns Promise<boolean>
+ */
+export async function isGitRepo(cwd: string): Promise<boolean> {
+  const git = getGit(cwd)
+  return await git.checkIsRepo()
+}

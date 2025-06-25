@@ -5,7 +5,8 @@ import type {
   HasCommitStep,
   PushStep,
 } from '@/types/uses'
-import { gitFetchAll } from '@/utils/git'
+import process from 'node:process'
+import { gitFetchAll, isGitRepo } from '@/utils/git'
 import { promptForMultiSelect } from '@/utils/prompts'
 import {
   handleCherryPick,
@@ -14,7 +15,7 @@ import {
   handlePush,
 } from './steps'
 import { runCommand } from './utils/exec'
-import { logger } from './utils/logger'
+import { logger, logMessage } from './utils/logger'
 
 async function runCustomTask(step: CustomTaskStep, cwd: string) {
   if (!step.run)
@@ -28,6 +29,13 @@ async function runCustomTask(step: CustomTaskStep, cwd: string) {
 
 export async function runSteps(config: Config) {
   const { steps, globals } = config
+
+  if (!(await isGitRepo(globals.cwd))) {
+    logger.error(
+      'The current directory is not a git repository. Please initialize a git repository and try again.',
+    )
+    process.exit(1)
+  }
 
   let selectedSteps: GitRitualStep[]
 
@@ -58,7 +66,7 @@ export async function runSteps(config: Config) {
   await gitFetchAll(globals.cwd)
 
   for (const step of selectedSteps) {
-    logger.log('')
+    logMessage('')
     if (step.name) {
       logger.success(`===== Running step: ${step.name} =====`)
     }
@@ -90,6 +98,6 @@ export async function runSteps(config: Config) {
     }
   }
 
-  logger.log('')
+  logMessage('')
   logger.success('🎉 All steps completed!')
 }

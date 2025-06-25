@@ -6,6 +6,9 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+git-ritual-*.log
+git-ritual-error-*.log
+*-audit.json
 
 # Runtime data
 pids

@@ -8,7 +8,7 @@ import {
   selectBranchesToProcess,
 } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
-import { logger } from '@/utils/logger'
+import { logger, logMessage } from '@/utils/logger'
 
 /**
  * `uses:cheryy-pick` 步骤的处理器函数
@@ -51,7 +51,7 @@ export async function handleCherryPick(
   // 3. 循环处理用户选择的每一个分支
   for (const [i, branch] of selectedBranches.entries()) {
     try {
-      logger.log(
+      logMessage(
         `\nProcessing branch: ${branch} (${i + 1}/${selectedBranches.length})`,
       )
 

@@ -5,6 +5,17 @@ import { runSteps } from '../runner'
 import { logger } from '../utils/logger'
 
 export async function main(): Promise<void> {
+  // 处理未捕获的异常和 Promise rejections
+  process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error)
+    process.exit(1)
+  })
+
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason)
+    process.exit(1)
+  })
+
   try {
     // 使用 c12 加载配置文件
     const loaded = await loadConfig<Config>({

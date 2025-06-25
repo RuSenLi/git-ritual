@@ -5,7 +5,7 @@ import { spinner } from '@clack/prompts'
 import { runCommandWithOutput } from '@/utils/exec'
 import { getGit } from '@/utils/git'
 import * as git from '@/utils/git'
-import { logger } from '@/utils/logger'
+import { logger, logMessage } from '@/utils/logger'
 
 // 查找器 (Finders) 包含了所有用于查找、筛选、查询 Git commit 的共享函数。
 
@@ -33,7 +33,7 @@ export async function filterCommitsToApply(
   const hashesToPick: string[] = []
   for (const hash of commitHashes) {
     if (appliedHashesSet.has(hash)) {
-      logger.log(
+      logMessage(
         `- Change from commit ${hash.substring(
           0,
           7,
@@ -42,7 +42,7 @@ export async function filterCommitsToApply(
     }
     else {
       hashesToPick.push(hash)
-      logger.log(
+      logMessage(
         `- Change from commit ${hash.substring(0, 7)} needs to be applied.`,
       )
     }

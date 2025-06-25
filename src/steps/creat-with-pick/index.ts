@@ -7,7 +7,7 @@ import {
   prepareBranch,
 } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
-import { logger } from '@/utils/logger'
+import { logger, logMessage } from '@/utils/logger'
 import { promptForMultiSelect } from '@/utils/prompts'
 import { confirmOrAbort } from '@/utils/prompts'
 
@@ -58,7 +58,7 @@ export async function handleCreateWithPick(
   const failedItems: { item: string, reason: string }[] = []
   for (const [i, task] of selectedTasks.entries()) {
     const taskIdentifier = `Task (${task.baseBranch} -> ${task.newBranch})`
-    logger.log(
+    logMessage(
       `\nProcessing ${taskIdentifier} (${i + 1}/${selectedTasks.length})`,
     )
 

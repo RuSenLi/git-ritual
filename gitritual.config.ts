@@ -48,6 +48,9 @@ export default defineConfig({
           isRegex: true,
         },
         commitHashes: 'bcb752e180297e2b4c8316dc81fc86c55840af15',
+        commitMessages: {
+          message: 'feat: feat',
+        },
       },
     },
   ],
