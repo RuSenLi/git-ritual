@@ -38,6 +38,14 @@ export async function handleHasCommit(
   const successfulItems: string[] = []
   const failedItems: string[] = []
 
+  const reportFormat = (
+    titleLog: string,
+    typeLog: string,
+    resultLog: string,
+  ): string => {
+    return `${titleLog}\n${typeLog}\n  ${resultLog}`
+  }
+
   for (const branch of selectedBranches) {
     // 尝试切换到分支，如果失败则记录并跳过
     try {
@@ -50,6 +58,7 @@ export async function handleHasCommit(
       continue
     }
 
+    const titleLog = ansis.bold.underline(`\nBranch: ${branch}`)
     // 1. 如果配置了 commitHashes，则执行 HASH (patch-id) 检查
     if (hashesToCheck.length > 0) {
       const foundHashes = await findAppliedHashesByPatchId(
@@ -58,25 +67,25 @@ export async function handleHasCommit(
         cwd,
       )
 
+      const typeLog = '- Checking by Commit Hash (patch-id):'
+
       if (foundHashes.length > 0) {
-        successfulItems.push(ansis.bold.underline(`\nBranch: ${branch}`))
-        successfulItems.push('- Checking by Commit Hash (patch-id):')
-        successfulItems.push(
-          `  ✅ Found: ${foundHashes.map(h => h.substring(0, 7)).join(', ')}`,
-        )
+        const resultLog = `✅ Found: ${foundHashes
+          .map(h => h.substring(0, 7))
+          .join(', ')}`
+        const reportLog = reportFormat(titleLog, typeLog, resultLog)
+        successfulItems.push(reportLog)
       }
 
       const notFoundHashes = hashesToCheck.filter(
         h => !foundHashes.includes(h),
       )
       if (notFoundHashes.length > 0) {
-        failedItems.push(ansis.bold.underline(`\nBranch: ${branch}`))
-        failedItems.push('- Checking by Commit Hash (patch-id):')
-        failedItems.push(
-          `  ❌ Not Found: ${notFoundHashes
-            .map(h => h.substring(0, 7))
-            .join(', ')}`,
-        )
+        const resultLog = `❌ Not Found: ${notFoundHashes
+          .map(h => h.substring(0, 7))
+          .join(', ')}`
+        const reportLog = reportFormat(titleLog, typeLog, resultLog)
+        failedItems.push(reportLog)
       }
     }
 
@@ -88,24 +97,23 @@ export async function handleHasCommit(
         cwd,
       )
 
+      const typeLog = '- Checking by Commit Message & Other Criteria:'
+
       if (foundCommits.length > 0) {
-        successfulItems.push(ansis.bold.underline(`\nBranch: ${branch}`))
-        successfulItems.push('- Checking by Commit Message & Other Criteria:')
-        successfulItems.push(
-          `  ✅ Found ${foundCommits.length} matching commit(s):`,
-        )
-        for (const commit of foundCommits) {
-          successfulItems.push(
-            ansis.dim(`    - ${commit.hash.substring(0, 7)}: ${commit.message}`),
+        const commitLog = Object.values(foundCommits)
+          .map(
+            commit =>
+              `    - ${commit.hash.substring(0, 7)}: ${commit.message}`,
           )
-        }
+          .join('\n')
+
+        const resultLog = `✅ Found ${foundCommits.length} matching commit(s):\n${commitLog}`
+        const reportLog = reportFormat(titleLog, typeLog, resultLog)
+        successfulItems.push(reportLog)
       }
       else {
-        failedItems.push(ansis.bold.underline(`\nBranch: ${branch}`))
-        failedItems.push('- Checking by Commit Message & Other Criteria:')
-        failedItems.push(
-          '  ❌ No commits found matching the specified criteria.',
-        )
+        const resultLog = `❌ No commits found matching the specified criteria.`
+        failedItems.push(reportFormat(titleLog, typeLog, resultLog))
       }
     }
   }

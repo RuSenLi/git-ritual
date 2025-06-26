@@ -22,18 +22,22 @@ export async function reportAndFinalizeStep(options: ReportOptions) {
   const summaryParts: string[] = []
   if (successfulItems.length > 0) {
     summaryParts.push(
-      `✅ Successful items:\n${successfulItems.join('\n')}`,
+      `✅ Successful ${successfulItems.length} items:\n${successfulItems.join(
+        '\n',
+      )}`,
     )
   }
   if (failedItems.length > 0) {
-    summaryParts.push(`❌ Failed items:\n${failedItems.join('\n')}`)
+    summaryParts.push(
+      `❌ Failed ${failedItems.length} items:\n${failedItems.join('\n')}`,
+    )
   }
 
   // 2. 终端美观输出 + 日志文件记录
   if (summaryParts.length > 0) {
     const report = summaryParts.join('\n\n')
     // 日志文件记录（不输出到终端）
-    logToFileOnly(`${stepName} Step Summary\n${report}`)
+    logToFileOnly(`${stepName} Step Summary\n${report}`, 'info')
     // 终端美观输出
     console.log(
       boxen(report, {
@@ -52,9 +56,9 @@ export async function reportAndFinalizeStep(options: ReportOptions) {
   )
   await safeCheckoutOriginalBranch(originalBranch, cwd)
 
-  // 4. 如果有任何失败，则抛出最终错误，使整个步骤状态为失败
+  // 4. 如果有任何失败，则抛出最终错误
   if (failedItems.length > 0) {
-    throw new Error(
+    logger.error(
       `Finished ${stepName} step with ${failedItems.length} failure(s).`,
     )
   }

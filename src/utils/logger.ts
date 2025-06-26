@@ -4,6 +4,13 @@ import ansis from 'ansis'
 import winston from 'winston'
 import DailyRotateFile from 'winston-daily-rotate-file'
 
+interface CustomTransformableInfo extends winston.Logform.TransformableInfo {
+  metadata?: {
+    fileOnly?: boolean
+    [key: string]: any
+  }
+}
+
 // 日志级别与颜色的映射，控制台彩色输出
 const levelColors = {
   error: 'red',
@@ -37,7 +44,7 @@ type CustomLogger = winston.Logger & {
 }
 
 // 控制台日志格式化函数，带颜色
-function formatConsole(info: winston.Logform.TransformableInfo) {
+function formatConsole(info: CustomTransformableInfo) {
   // 获取对应级别的颜色，默认为 white
   const colorName: SimpleColorName
     = levelColors[info.level as LogLevel] || 'white'
@@ -49,6 +56,36 @@ function formatConsole(info: winston.Logform.TransformableInfo) {
   return colorizer(message).toString()
 }
 
+// 创建自定义过滤格式
+const fileOnlyFilter = winston.format((info: CustomTransformableInfo) => {
+  // 如果是文件专用日志，则跳过控制台输出
+  return info.metadata?.fileOnly ? false : info
+})
+
+// 文件日志格式化函数
+function formatFile(info: CustomTransformableInfo) {
+  const { timestamp, level, metadata } = info
+
+  const message
+    = typeof info.message === 'string' ? info.message : String(info.message)
+
+  // 处理多行消息（每行单独缩进）
+  const formattedMessage = message.includes('\n')
+    ? `\n  ${message.replace(/\n/g, '\n  ')}`
+    : message
+
+  // 格式化元数据（如果有）
+  const metaStr
+    = metadata && Object.keys(metadata).length > 0
+      ? `\n  ${JSON.stringify(metadata, null, 2).replace(/\n/g, '\n  ')}`
+      : ''
+
+  // 确保级别名称长度一致
+  const paddedLevel = level.toUpperCase().padEnd(7)
+
+  return `[${timestamp}] [${paddedLevel}] ${formattedMessage}${metaStr}`
+}
+
 // 创建 winston 日志实例
 const logger = winston.createLogger({
   levels,
@@ -56,23 +93,29 @@ const logger = winston.createLogger({
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),
     winston.format.splat(),
+    winston.format.metadata({
+      fillExcept: ['message', 'level', 'timestamp', 'label'],
+    }),
   ),
   transports: [
     // 控制台输出，带颜色
     new winston.transports.Console({
       level: 'success',
-      format: winston.format.printf(formatConsole),
+      format: winston.format.combine(
+        fileOnlyFilter(), // 应用自定义过滤
+        winston.format.printf(formatConsole),
+      ),
     }),
     // 普通日志文件，按天轮转，保留14天，自动压缩归档
     new DailyRotateFile({
       filename: path.join(process.cwd(), 'git-ritual-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxFiles: '14d',
-      level: 'debug',
+      maxFiles: '1d',
+      level: 'success',
       format: winston.format.combine(
-        winston.format.uncolorize(), // 移除颜色
-        winston.format.json(), // JSON 格式
+        winston.format.uncolorize(),
+        winston.format.printf(formatFile), // 使用自定义文本格式
       ),
     }),
     // 错误日志文件，按天轮转，保留30天，自动压缩归档
@@ -80,8 +123,8 @@ const logger = winston.createLogger({
       filename: path.join(process.cwd(), 'git-ritual-error-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxFiles: '30d',
-      level: 'error',
+      maxFiles: '1d',
+      level: 'warn',
       format: winston.format.combine(
         winston.format.uncolorize(),
         winston.format.json(),
@@ -95,11 +138,11 @@ function logMessage(message: string, level: LogLevel = 'info') {
   logger.log({ level, message })
 }
 
-// 只写入文件 transport，不输出到控制台
+/**
+ * 只写入日志文件，不输出到终端
+ */
 function logToFileOnly(message: string, level: LogLevel = 'info') {
-  logger.transports
-    ?.filter((t): t is DailyRotateFile => t instanceof DailyRotateFile)
-    .forEach(t => t?.log?.({ level, message }, () => {}))
+  logger.log(level, message, { fileOnly: true })
 }
 
 export { logger, logMessage, logToFileOnly }
