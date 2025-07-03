@@ -9,6 +9,7 @@ yarn-error.log*
 git-ritual-*.log
 git-ritual-error-*.log
 *-audit.json
+gitritual-log
 
 # Runtime data
 pids

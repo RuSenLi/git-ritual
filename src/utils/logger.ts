@@ -86,6 +86,8 @@ function formatFile(info: CustomTransformableInfo) {
   return `[${timestamp}] [${paddedLevel}] ${formattedMessage}${metaStr}`
 }
 
+const logDir = path.join(process.cwd(), 'gitritual-log')
+
 // 创建 winston 日志实例
 const logger = winston.createLogger({
   levels,
@@ -108,10 +110,10 @@ const logger = winston.createLogger({
     }),
     // 普通日志文件，按天轮转，保留14天，自动压缩归档
     new DailyRotateFile({
-      filename: path.join(process.cwd(), 'git-ritual-%DATE%.log'),
+      filename: path.join(logDir, 'git-ritual-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxFiles: '1d',
+      maxFiles: '7d',
       level: 'success',
       format: winston.format.combine(
         winston.format.uncolorize(),
@@ -120,10 +122,10 @@ const logger = winston.createLogger({
     }),
     // 错误日志文件，按天轮转，保留30天，自动压缩归档
     new DailyRotateFile({
-      filename: path.join(process.cwd(), 'git-ritual-error-%DATE%.log'),
+      filename: path.join(logDir, 'git-ritual-error-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxFiles: '1d',
+      maxFiles: '7d',
       level: 'warn',
       format: winston.format.combine(
         winston.format.uncolorize(),

@@ -1,11 +1,11 @@
 import type { DefaultLogFields } from 'simple-git'
 import type { CommitMessageCheck } from '@/steps/has-commit/types'
 import type { TargetBranches } from '@/types'
-import { spinner } from '@clack/prompts'
 import { runCommandWithOutput } from '@/utils/exec'
 import { getGit } from '@/utils/git'
 import * as git from '@/utils/git'
 import { logger, logMessage } from '@/utils/logger'
+import spinner from '@/utils/spinner'
 
 // 查找器 (Finders) 包含了所有用于查找、筛选、查询 Git commit 的共享函数。
 

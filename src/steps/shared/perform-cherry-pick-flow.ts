@@ -9,16 +9,19 @@ export interface PerformCherryPickOptions {
   globals: GitRitualGlobals
 }
 
+type LogMsg = string | undefined
+
 /**
  * @param options - 包含 hashesToPick 和 globals 的选项对象
  * @returns Promise<boolean> - 是否有新的 commit 被成功应用
  */
 export async function performCherryPickFlow(
   options: PerformCherryPickOptions,
-): Promise<boolean> {
+): Promise<[boolean, LogMsg]> {
   const { hashesToPick, globals } = options
   const { cwd } = globals
   let hasChanges = false
+  let logMsg: LogMsg
 
   for (const hash of hashesToPick) {
     let isCommitHandled = false
@@ -63,6 +66,7 @@ export async function performCherryPickFlow(
 
         // Git 明确告知这是一个“空提交”（通常在冲突状态后），我们自动处理
         if (errorMessage.includes('the previous cherry-pick is now empty')) {
+          logMsg = 'empty submission'
           logger.warn(
             '  Change is already present or conflict resolution resulted in an empty commit. Automatically skipping...',
           )
@@ -79,6 +83,7 @@ export async function performCherryPickFlow(
 
         switch (resolution) {
           case 'continue':
+            logMsg = 'user selected manually resolved the conflict'
             // 在尝试 --continue 之前，先检查状态
             if (git.isCherryPickInProgress(cwd)) {
               try {
@@ -118,14 +123,19 @@ export async function performCherryPickFlow(
             }
             break
           case 'skip':
+            logMsg = 'user selected skip current branch'
             logger.warn(`  Skipping commit ${hash.substring(0, 7)}.`)
             await git.gitCherryPickAbort(cwd)
             isCommitHandled = true
             break
           case 'abort':
+            logMsg = 'user selected abort all operations'
             await git.gitCherryPickAbort(cwd).catch(() => {})
             throw new Error('Operation aborted by user.')
           case 'retry':
+            logMsg = 'user selected retry the last command'
+            logger.info('  Retrying...')
+            break
           default:
             logger.info('  Retrying...')
             break
@@ -134,5 +144,5 @@ export async function performCherryPickFlow(
     }
   }
 
-  return hasChanges
+  return [hasChanges, logMsg]
 }

@@ -1,10 +1,10 @@
 import type { SimpleGit, SimpleGitOptions } from 'simple-git'
 import fs from 'node:fs'
 import path from 'node:path'
-import { spinner } from '@clack/prompts'
 import { simpleGit } from 'simple-git'
 import { logger } from './logger'
 import { confirmOrAbort } from './prompts'
+import spinner from './spinner'
 
 export function getGit(cwd: string): SimpleGit {
   const options: Partial<SimpleGitOptions> = {

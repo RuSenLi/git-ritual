@@ -1,5 +1,6 @@
 import type { CreateWithPickStep, CreationTask } from './types'
 import type { GitRitualGlobals } from '@/types'
+import ansis from 'ansis'
 import { performCherryPickFlow, reportAndFinalizeStep } from '@/steps/shared'
 import { filterCommitsToApply, toArray } from '@/steps/shared/finders'
 import {
@@ -55,9 +56,14 @@ export async function handleCreateWithPick(
   const originalBranch = await git.getCurrentBranch(cwd)
 
   const successfulItems: string[] = []
-  const failedItems: { item: string, reason: string }[] = []
+  const failedItems: string[] = []
+  const warnItems: string[] = []
+  const spacesStr = ' '.repeat(4)
+
   for (const [i, task] of selectedTasks.entries()) {
-    const taskIdentifier = `Task (${task.baseBranch} -> ${task.newBranch})`
+    const taskIdentifier = `Task (${ansis.bold(
+      `${task.baseBranch} -> ${task.newBranch}`,
+    )})`
     logMessage(
       `\nProcessing ${taskIdentifier} (${i + 1}/${selectedTasks.length})`,
     )
@@ -77,11 +83,10 @@ export async function handleCreateWithPick(
           await prepareBranch(newBranch, remote, cwd)
         }
         else {
-          logger.warn(
-            `Skipping step as user chose not to proceed with existing branch "${newBranch}".`,
-          )
-          await git.gitCheckout(originalBranch, cwd)
-          return
+          const msg = `Skipping step as user chose not to proceed with existing branch "${newBranch}".`
+          logger.warn(msg)
+          warnItems.push(`${spacesStr}- ${taskIdentifier}: ${msg}`)
+          continue
         }
       }
       else {
@@ -98,11 +103,13 @@ export async function handleCreateWithPick(
       )
 
       if (hashesToPick.length === 0) {
-        successfulItems.push(`${taskIdentifier} (no new changes)`)
+        successfulItems.push(
+          `${spacesStr}- 🕊️ ${taskIdentifier} (no new changes)`,
+        )
         continue
       }
 
-      const hasChanges = await performCherryPickFlow({
+      const [hasChanges, logMsg] = await performCherryPickFlow({
         hashesToPick,
         globals,
       })
@@ -110,10 +117,21 @@ export async function handleCreateWithPick(
       if (shouldPush && hasChanges) {
         await git.gitPush(remote, newBranch, cwd)
       }
-      successfulItems.push(`${taskIdentifier} (changes applied)`)
+      if (logMsg) {
+        successfulItems.push(`${spacesStr}- ⚠️ ${taskIdentifier} (${logMsg})`)
+      }
+      else {
+        successfulItems.push(
+          `${spacesStr}- ${taskIdentifier} (changes applied)`,
+        )
+      }
+
+      if (logMsg) {
+        warnItems.push(`${spacesStr}- ${taskIdentifier}: ${logMsg}`)
+      }
     }
     catch (error: any) {
-      failedItems.push({ item: taskIdentifier, reason: error.message })
+      failedItems.push(`${spacesStr}- ${taskIdentifier}: ${error.message}`)
       // 尽力重置 Git 状态，以防影响下一个任务
       await git.gitReset(cwd).catch(() => {})
     }
@@ -124,6 +142,7 @@ export async function handleCreateWithPick(
     stepName: 'Create-with-Pick',
     successfulItems,
     failedItems,
+    warnItems,
     originalBranch,
     cwd,
   })

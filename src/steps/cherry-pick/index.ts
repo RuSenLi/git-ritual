@@ -1,5 +1,6 @@
 import type { CherryPickStep } from './types'
 import type { GitRitualGlobals } from '@/types'
+import ansis from 'ansis'
 import { performCherryPickFlow, reportAndFinalizeStep } from '@/steps/shared'
 import { filterCommitsToApply, toArray } from '@/steps/shared/finders'
 import {
@@ -45,11 +46,15 @@ export async function handleCherryPick(
 
   const initialCommitHashes = toArray(commitHashes)
 
-  const successfulBranches: string[] = []
-  const failedBranches: { branch: string, reason: string }[] = []
+  const successfulItems: string[] = []
+  const failedItems: string[] = []
+  const warnItems: string[] = []
+  const spacesStr = ' '.repeat(4)
 
   // 3. 循环处理用户选择的每一个分支
   for (const [i, branch] of selectedBranches.entries()) {
+    const branchLog = ansis.bold(`${branch}`)
+
     try {
       logMessage(
         `\nProcessing branch: ${branch} (${i + 1}/${selectedBranches.length})`,
@@ -64,13 +69,14 @@ export async function handleCherryPick(
         cwd,
         patchIdCheckDepth,
       )
+
       if (hashesToPick.length === 0) {
-        successfulBranches.push(`${branch} (no new changes)`)
+        successfulItems.push(`${spacesStr}- 🕊️ ${branchLog} (no new changes)`)
         continue
       }
 
       // 调用核心流程处理 cherry-pick
-      const hasChanges = await performCherryPickFlow({
+      const [hasChanges, logMsg] = await performCherryPickFlow({
         hashesToPick,
         globals,
       })
@@ -79,10 +85,19 @@ export async function handleCherryPick(
       if (shouldPush && hasChanges) {
         await git.gitPush(remote, branch, cwd)
       }
-      successfulBranches.push(`${branch} (changes applied)`)
+      if (logMsg) {
+        successfulItems.push(`${spacesStr}- ⚠️ ${branchLog} (${logMsg})`)
+      }
+      else {
+        successfulItems.push(`${spacesStr}- ${branchLog} (changes applied)`)
+      }
+
+      if (logMsg) {
+        warnItems.push(`${spacesStr}- ${branchLog}: ${logMsg}`)
+      }
     }
     catch (error: any) {
-      failedBranches.push({ branch, reason: error.message })
+      failedItems.push(`${spacesStr}- ${branchLog}: ${error.message}`)
       // 尽力重置，以防影响下一个分支
       await git.gitReset(cwd).catch(() => {})
     }
@@ -90,11 +105,9 @@ export async function handleCherryPick(
 
   await reportAndFinalizeStep({
     stepName: 'Cherry-Pick',
-    successfulItems: successfulBranches,
-    failedItems: failedBranches.map(f => ({
-      item: f.branch,
-      reason: f.reason,
-    })),
+    successfulItems,
+    failedItems,
+    warnItems,
     originalBranch,
     cwd,
   })

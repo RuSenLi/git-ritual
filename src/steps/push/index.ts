@@ -1,5 +1,6 @@
 import type { PushStep } from './types'
 import type { GitRitualGlobals } from '@/types'
+import ansis from 'ansis'
 import { reportAndFinalizeStep } from '@/steps/shared'
 import { selectBranchesToProcess } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
@@ -24,11 +25,15 @@ export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
   const originalBranch = await git.getCurrentBranch(cwd)
 
   // 1. 初始化成功和失败的列表
-  const successfulPushes: string[] = []
-  const failedPushes: { branch: string, reason: string }[] = []
+  const successfulItems: string[] = []
+  const failedItems: string[] = []
+  const warnItems: string[] = []
+  const spacesStr = ' '.repeat(4)
 
   // 2. 遍历所有要推送的分支
   for (const branch of selectedBranches) {
+    const branchLog = ansis.bold(`${branch}`)
+
     try {
       logMessage(`\nProcessing branch: ${branch}`)
       await git.gitCheckout(branch, cwd)
@@ -36,7 +41,7 @@ export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
       // 如果是纯本地分支，直接推送
       if (!(await git.isBranchTracked(branch, cwd))) {
         await git.gitPush(remote, branch, cwd)
-        successfulPushes.push(branch)
+        successfulItems.push(`${spacesStr}- ${branchLog}`)
         continue
       }
 
@@ -54,26 +59,25 @@ export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
           `Branch "${branch}" is already up-to-date. Nothing to push.`,
         )
         // 我们可以将“无需推送”也视为一种广义的“成功”
-        successfulPushes.push(`${branch} (up-to-date)`)
+        successfulItems.push(`${spacesStr}- ⚠️ ${branchLog} (up-to-date)`)
+        warnItems.push(`${spacesStr}- ${branchLog} (up-to-date)`)
       }
       else {
         await git.gitPush(remote, branch, cwd)
-        successfulPushes.push(branch)
+        successfulItems.push(`${spacesStr}- ${branchLog}`)
       }
     }
     catch (error: any) {
       // 3. 如果当前分支处理失败，记录下来并继续处理下一个
-      failedPushes.push({ branch, reason: error.message })
+      failedItems.push(`${spacesStr}- ${branchLog}: ${error.message}`)
     }
   }
 
   await reportAndFinalizeStep({
     stepName: 'Push',
-    successfulItems: successfulPushes,
-    failedItems: failedPushes.map(f => ({
-      item: f.branch,
-      reason: f.reason,
-    })),
+    successfulItems,
+    failedItems,
+    warnItems,
     originalBranch,
     cwd: globals.cwd,
   })

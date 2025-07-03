@@ -70,7 +70,7 @@ export async function handleHasCommit(
       const typeLog = '- Checking by Commit Hash (patch-id):'
 
       if (foundHashes.length > 0) {
-        const resultLog = `✅ Found: ${foundHashes
+        const resultLog = `Found: ${foundHashes
           .map(h => h.substring(0, 7))
           .join(', ')}`
         const reportLog = reportFormat(titleLog, typeLog, resultLog)
@@ -81,7 +81,7 @@ export async function handleHasCommit(
         h => !foundHashes.includes(h),
       )
       if (notFoundHashes.length > 0) {
-        const resultLog = `❌ Not Found: ${notFoundHashes
+        const resultLog = `Not Found: ${notFoundHashes
           .map(h => h.substring(0, 7))
           .join(', ')}`
         const reportLog = reportFormat(titleLog, typeLog, resultLog)
@@ -103,16 +103,16 @@ export async function handleHasCommit(
         const commitLog = Object.values(foundCommits)
           .map(
             commit =>
-              `    - ${commit.hash.substring(0, 7)}: ${commit.message}`,
+              `- ${commit.hash.substring(0, 7)}: ${commit.message}`,
           )
           .join('\n')
 
-        const resultLog = `✅ Found ${foundCommits.length} matching commit(s):\n${commitLog}`
+        const resultLog = `Found ${foundCommits.length} matching commit(s):\n${commitLog}`
         const reportLog = reportFormat(titleLog, typeLog, resultLog)
         successfulItems.push(reportLog)
       }
       else {
-        const resultLog = `❌ No commits found matching the specified criteria.`
+        const resultLog = `No commits found matching the specified criteria.`
         failedItems.push(reportFormat(titleLog, typeLog, resultLog))
       }
     }
