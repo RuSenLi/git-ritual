@@ -10,6 +10,7 @@ import {
 } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger, logMessage } from '@/utils/logger'
+import { resolveValue } from '../shared/resolveValue'
 
 /**
  * `uses:cheryy-pick` 步骤的处理器函数
@@ -21,9 +22,15 @@ export async function handleCherryPick(
   globals: GitRitualGlobals,
 ) {
   const { cwd, patchIdCheckDepth } = globals
-  const { targetBranches, commitHashes, skipBranchSelection } = step.with
-  const remote = step.with.remote ?? globals.remote ?? 'origin'
-  const shouldPush = step.with.push ?? globals.push ?? false
+  const {
+    targetBranches,
+    commitHashes,
+    skipBranchSelection,
+    remote: withRemote,
+    push: withPush,
+  } = await resolveValue(step.with)
+  const remote = withRemote ?? globals.remote ?? 'origin'
+  const shouldPush = withPush ?? globals.push ?? false
 
   // 1. 从配置中获取初始分支列表，并让用户交互式选择
   const selectedBranches = await selectBranchesToProcess({

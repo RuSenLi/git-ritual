@@ -11,6 +11,7 @@ import * as git from '@/utils/git'
 import { logger, logMessage } from '@/utils/logger'
 import { promptForMultiSelect } from '@/utils/prompts'
 import { confirmOrAbort } from '@/utils/prompts'
+import { resolveValue } from '../shared/resolveValue'
 
 /**
  * `uses:create-with-pick` 步骤的处理器函数
@@ -22,9 +23,14 @@ export async function handleCreateWithPick(
   globals: GitRitualGlobals,
 ) {
   const { cwd, patchIdCheckDepth } = globals
-  const { tasks, skipTaskSelection } = step.with
-  const remote = step.with.remote ?? globals.remote ?? 'origin'
-  const shouldPush = step.with.push ?? globals.push ?? false
+  const {
+    tasks,
+    skipTaskSelection,
+    remote: withRemote,
+    push: withPush,
+  } = await resolveValue(step.with)
+  const remote = withRemote ?? globals.remote ?? 'origin'
+  const shouldPush = withPush ?? globals.push ?? false
 
   // 从列表中选择任务
   const taskOptions = tasks.map((task, i) => ({

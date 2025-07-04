@@ -125,7 +125,7 @@ export async function performCherryPickFlow(
           case 'skip':
             logMsg = 'user selected skip current branch'
             logger.warn(`  Skipping commit ${hash.substring(0, 7)}.`)
-            await git.gitCherryPickAbort(cwd)
+            await git.gitCherryPickAbort(cwd).catch(() => {})
             isCommitHandled = true
             break
           case 'abort':

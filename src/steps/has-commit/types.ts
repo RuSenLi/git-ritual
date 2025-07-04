@@ -2,6 +2,7 @@ import type {
   BaseStep,
   CommitHashes,
   RequireAtLeastOne,
+  ResolvableValue,
   TargetBranches,
 } from '@/types'
 
@@ -48,11 +49,16 @@ interface HasCommitWithBase {
   skipBranchSelection?: boolean
 }
 
+export type HasCommitStepWith = RequireAtLeastOne<
+  HasCommitWithBase,
+  'commitHashes' | 'commitMessages'
+>
+
 /**
  * 定义 'gitritual/has-commit@v1' 步骤的配置
  * 使用 RequireAtLeastOne 确保 commitHashes 和 commitMessages 至少提供一个
  */
 export type HasCommitStep = BaseStep & {
   uses: 'gitritual/has-commit@v1'
-  with: RequireAtLeastOne<HasCommitWithBase, 'commitHashes' | 'commitMessages'>
+  with: ResolvableValue<HasCommitStepWith>
 }

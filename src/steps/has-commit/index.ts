@@ -10,6 +10,7 @@ import {
 import { selectBranchesToProcess } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger } from '@/utils/logger'
+import { resolveValue } from '../shared/resolveValue'
 
 export async function handleHasCommit(
   step: HasCommitStep,
@@ -17,7 +18,7 @@ export async function handleHasCommit(
 ) {
   const { cwd } = globals
   const { targetBranches, commitHashes, commitMessages, skipBranchSelection }
-    = step.with
+    = await resolveValue(step.with)
 
   const selectedBranches = await selectBranchesToProcess({
     targetBranches,
@@ -102,8 +103,7 @@ export async function handleHasCommit(
       if (foundCommits.length > 0) {
         const commitLog = Object.values(foundCommits)
           .map(
-            commit =>
-              `- ${commit.hash.substring(0, 7)}: ${commit.message}`,
+            commit => `- ${commit.hash.substring(0, 7)}: ${commit.message}`,
           )
           .join('\n')
 
