@@ -1,4 +1,21 @@
-import type { BaseStep, CommitHashes, TargetBranches } from '@/types'
+import type {
+  BaseStep,
+  CommitHashes,
+  ResolvableValue,
+  TargetBranches,
+} from '@/types'
+
+export interface CherryPickStepWith {
+  targetBranches: TargetBranches
+  commitHashes: CommitHashes
+  push?: boolean
+  remote?: string
+  /**
+   * 跳过分支选择
+   * @default false
+   */
+  skipBranchSelection?: boolean
+}
 
 /**
  * cherry-pick 步骤，批量将指定提交应用到目标分支。
@@ -11,15 +28,5 @@ import type { BaseStep, CommitHashes, TargetBranches } from '@/types'
  */
 export interface CherryPickStep extends BaseStep {
   uses: 'gitritual/cherry-pick@v1'
-  with: {
-    targetBranches: TargetBranches
-    commitHashes: CommitHashes
-    push?: boolean
-    remote?: string
-    /**
-     * 跳过分支选择
-     * @default false
-     */
-    skipBranchSelection?: boolean
-  }
+  with: ResolvableValue<CherryPickStepWith>
 }

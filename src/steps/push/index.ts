@@ -5,12 +5,13 @@ import { reportAndFinalizeStep } from '@/steps/shared'
 import { selectBranchesToProcess } from '@/steps/shared/lifecycle'
 import * as git from '@/utils/git'
 import { logger, logMessage } from '@/utils/logger'
+import { resolveValue } from '../shared/resolveValue'
 
 export async function handlePush(step: PushStep, globals: GitRitualGlobals) {
   const { cwd } = globals
-  const remote = step.with.remote ?? globals.remote ?? 'origin'
 
-  const { targetBranches, skipBranchSelection } = step.with
+  const { targetBranches, skipBranchSelection, remote: withRemote } = await resolveValue(step.with)
+  const remote = withRemote ?? globals.remote ?? 'origin'
 
   const selectedBranches = await selectBranchesToProcess({
     targetBranches,

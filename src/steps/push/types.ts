@@ -1,4 +1,14 @@
-import type { BaseStep, TargetBranches } from '@/types'
+import type { BaseStep, ResolvableValue, TargetBranches } from '@/types'
+
+export interface PushStepWith {
+  targetBranches: TargetBranches
+  remote?: string
+  /**
+   * 跳过分支选择
+   * @default false
+   */
+  skipBranchSelection?: boolean
+}
 
 /**
  * push 步骤
@@ -18,13 +28,5 @@ import type { BaseStep, TargetBranches } from '@/types'
  */
 export interface PushStep extends BaseStep {
   uses: 'gitritual/push@v1'
-  with: {
-    targetBranches: TargetBranches
-    remote?: string
-    /**
-     * 跳过分支选择
-     * @default false
-     */
-    skipBranchSelection?: boolean
-  }
+  with: ResolvableValue<PushStepWith>
 }

@@ -1,4 +1,4 @@
-import type { BaseStep, CommitHashes } from '@/types'
+import type { BaseStep, CommitHashes, ResolvableValue } from '@/types'
 
 /**
  * 定义单个“创建与挑选”任务的结构
@@ -18,6 +18,25 @@ export interface CreationTask {
   commitHashes: CommitHashes
 }
 
+export interface CreateWithPickStepWith {
+  tasks: CreationTask[]
+  /**
+   * 操作完成后是否将新分支推送到远程
+   * @default false
+   */
+  push?: boolean
+  /**
+   * 远程仓库的名称
+   * @default 'origin'
+   */
+  remote?: string
+  /**
+   * 是否跳过开始前的交互式任务选择
+   * @default false
+   */
+  skipTaskSelection?: boolean
+}
+
 /**
  * 'gitritual/create-with-pick@v1'
  * 创建新分支并 cherry-pick 指定提交。
@@ -31,22 +50,5 @@ export interface CreationTask {
  */
 export interface CreateWithPickStep extends BaseStep {
   uses: 'gitritual/create-with-pick@v1'
-  with: {
-    tasks: CreationTask[]
-    /**
-     * 操作完成后是否将新分支推送到远程
-     * @default false
-     */
-    push?: boolean
-    /**
-     * 远程仓库的名称
-     * @default 'origin'
-     */
-    remote?: string
-    /**
-     * 是否跳过开始前的交互式任务选择
-     * @default false
-     */
-    skipTaskSelection?: boolean
-  }
+  with: ResolvableValue<CreateWithPickStepWith>
 }
