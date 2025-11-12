@@ -3,25 +3,33 @@
   "type": "module",
   "version": "0.1.0",
   "packageManager": "pnpm@10.11.0",
-  "description": "",
+  "description": "交互式 CLI 工具，自定义 Git 批量操作流程。",
   "license": "MIT",
-  "homepage": "",
+  "homepage": "https://github.com/RuSenLi/git-ritual",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/RuSenLi/git-ritual.git"
   },
   "bugs": {
-    "url": ""
+    "url": "https://github.com/RuSenLi/git-ritual/issues"
   },
   "keywords": [
     "git",
-    "batch",
-    "gitfolws",
+    "gitflow",
+    "workflow",
+    "automation",
+    "cli",
     "git-ritual",
-    "cherry-pick"
+    "cherry-pick",
+    "branch",
+    "push"
   ],
   "exports": {
-    ".": "./dist/index.js",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
@@ -36,12 +44,16 @@
     }
   },
   "bin": {
-    "gr": "bin/gitritual.mjs"
+    "gr": "bin/gitritual.mjs",
+    "git-ritual": "bin/gitritual.mjs"
   },
   "files": [
     "bin",
     "dist"
   ],
+  "engines": {
+    "node": ">=18.18"
+  },
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown -w",
