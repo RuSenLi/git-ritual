@@ -1,4 +1,4 @@
 #!/usr/bin/env node
 'use strict'
-import('../dist/runner.js')
+import('../dist/run.js')
   .then(r => r.main())
