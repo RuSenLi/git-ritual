@@ -113,7 +113,7 @@ const logger = winston.createLogger({
       filename: path.join(logDir, 'git-ritual-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxFiles: '7d',
+      maxFiles: '14d',
       level: 'success',
       format: winston.format.combine(
         winston.format.uncolorize(),
@@ -125,7 +125,7 @@ const logger = winston.createLogger({
       filename: path.join(logDir, 'git-ritual-error-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxFiles: '7d',
+      maxFiles: '30d',
       level: 'warn',
       format: winston.format.combine(
         winston.format.uncolorize(),
